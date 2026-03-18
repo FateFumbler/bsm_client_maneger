@@ -33,6 +33,7 @@ TURSO_AUTH_TOKEN = os.environ.get('TURSO_AUTH_TOKEN')
 # Track if Turso is available (updated after connection test)
 TURSO_AVAILABLE = False
 _turso_conn = None  # Reuse Turso connection across requests
+_turso_error = None  # Last error message from Turso connection attempt
 
 class _NoCloseConnection:
     """Wrapper that ignores close() calls to reuse a single Turso connection."""
@@ -88,11 +89,13 @@ def init_database():
             TURSO_AVAILABLE = True
             print(f"✅ Turso connection verified: {TURSO_DB_URL}")
         except Exception as e:
-            print(f"❌ Turso connection test failed: {e}")
+            print(f"❌ Turso connection test failed: {type(e).__name__}: {e}")
             TURSO_AVAILABLE = False
+            _turso_error = str(e)
     else:
         print(f"⚠️ Turso not configured: URL={'set' if TURSO_DB_URL else 'missing'}, TOKEN={'set' if TURSO_AUTH_TOKEN else 'missing'}")
         TURSO_AVAILABLE = False
+        _turso_error = "env vars missing"
     
     db = get_db()
     
@@ -798,7 +801,8 @@ def health_check():
         'vercel_mode': True,
         'turso_url_set': bool(TURSO_DB_URL),
         'turso_token_set': bool(TURSO_AUTH_TOKEN),
-        'turso_available': TURSO_AVAILABLE
+        'turso_available': TURSO_AVAILABLE,
+        'turso_error': _turso_error
     })
 
 # Initialize database on startup
