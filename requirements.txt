@@ -1,0 +1,8 @@
+flask
+flask-cors
+openai
+pandas
+openpyxl
+Pillow
+requests
+libsql
