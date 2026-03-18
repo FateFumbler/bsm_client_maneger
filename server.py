@@ -86,12 +86,12 @@ def init_database():
             test_conn.execute('SELECT 1')
             del test_conn  # Don't call close() — let it drop
             TURSO_AVAILABLE = True
-            print("Turso connection verified successfully")
+            print(f"✅ Turso connection verified: {TURSO_DB_URL}")
         except Exception as e:
-            print(f"Turso connection test failed: {e}")
-            print("Will use SQLite as fallback")
+            print(f"❌ Turso connection test failed: {e}")
             TURSO_AVAILABLE = False
     else:
+        print(f"⚠️ Turso not configured: URL={'set' if TURSO_DB_URL else 'missing'}, TOKEN={'set' if TURSO_AUTH_TOKEN else 'missing'}")
         TURSO_AVAILABLE = False
     
     db = get_db()
@@ -795,7 +795,10 @@ def health_check():
         'status': 'ok',
         'database_type': db_type,
         'database_path': TURSO_DB_URL if TURSO_AVAILABLE else DATABASE_PATH,
-        'vercel_mode': True
+        'vercel_mode': True,
+        'turso_url_set': bool(TURSO_DB_URL),
+        'turso_token_set': bool(TURSO_AUTH_TOKEN),
+        'turso_available': TURSO_AVAILABLE
     })
 
 # Initialize database on startup
