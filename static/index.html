@@ -298,6 +298,32 @@
         .upload-section {
             margin-bottom: 20px;
         }
+        
+        .upload-buttons-mobile {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+        }
+        
+        .upload-buttons-mobile .btn {
+            flex: 1;
+            padding: 10px 12px;
+            font-size: 14px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            background: white;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+        }
+        
+        .upload-buttons-mobile .btn:hover {
+            background: var(--primary-light);
+            border-color: var(--primary);
+        }
 
         .upload-area { 
             border: 2px dashed var(--border); 
@@ -1058,11 +1084,20 @@
                 </h2>
                 
                 <div class="upload-section">
-                    <div class="upload-area" id="uploadArea" onclick="document.getElementById('cardInput').click()">
-                        <input type="file" id="cardInput" accept="image/*" capture="environment" multiple onchange="handleImageUpload(this)">
+                    <div class="upload-area" id="uploadArea">
+                        <input type="file" id="cardInput" accept="image/*" multiple onchange="handleImageUpload(this)" style="display:none">
+                        <input type="file" id="cameraInput" accept="image/*" capture="environment" multiple onchange="handleImageUpload(this)" style="display:none">
                         <div class="upload-icon">📷</div>
-                        <div class="upload-text">Tap to capture or select images</div>
-                        <div class="upload-hint">Capture front & back of card (max 2 images)</div>
+                        <div class="upload-text">Tap to select images</div>
+                        <div class="upload-hint">Choose from gallery or camera (max 2 images)</div>
+                    </div>
+                    <div class="upload-buttons-mobile">
+                        <button type="button" class="btn btn-secondary" onclick="event.stopPropagation(); document.getElementById('cameraInput').click()" style="margin-top:8px;flex:1">
+                            📸 Take Photo
+                        </button>
+                        <button type="button" class="btn btn-secondary" onclick="event.stopPropagation(); document.getElementById('cardInput').click()" style="margin-top:8px;flex:1">
+                            🖼️ From Gallery
+                        </button>
                     </div>
                     
                     <div class="uploaded-images" id="uploadedImages"></div>
@@ -1324,28 +1359,53 @@
             }
         }
 
-        // Image handling
+        // Image handling - mobile-friendly with reload protection
         function handleImageUpload(input) {
             const files = Array.from(input.files);
             if (files.length === 0) return;
 
             if (files.length > 2) {
                 alert('Please select maximum 2 images');
+                input.value = '';
                 return;
             }
 
+            // Clear previous session data on new upload
+            try { sessionStorage.removeItem('bsm_uploaded'); } catch(err) {}
+            
             uploadedImages = [];
 
             files.forEach((file) => {
                 const reader = new FileReader();
                 reader.onload = (e) => {
                     const imageData = e.target.result;
+                    // Store in sessionStorage as backup against page reload
+                    try {
+                        const existing = JSON.parse(sessionStorage.getItem('bsm_uploaded') || '[]');
+                        existing.push(imageData);
+                        sessionStorage.setItem('bsm_uploaded', JSON.stringify(existing));
+                    } catch(err) { /* ignore quota errors */ }
                     processImageForOCR(imageData);
+                };
+                reader.onerror = () => {
+                    alert('Failed to read image file. Please try again.');
                 };
                 reader.readAsDataURL(file);
             });
 
             input.value = '';
+        }
+        
+        // Restore images from sessionStorage after mobile camera reload
+        function restoreUploadedImages() {
+            try {
+                const stored = JSON.parse(sessionStorage.getItem('bsm_uploaded') || '[]');
+                if (stored.length > 0 && uploadedImages.length === 0) {
+                    uploadedImages = stored;
+                    sessionStorage.removeItem('bsm_uploaded');
+                    stored.forEach(img => processImageForOCR(img));
+                }
+            } catch(err) { /* ignore */ }
         }
 
         async function processImageForOCR(imageData) {
@@ -1375,6 +1435,9 @@
                 
                 statusEl.className = 'ocr-status done';
                 statusEl.innerHTML = `✓ OCR Complete - ${uploadedImages.length} image(s) processed`;
+                
+                // Clear stored images after successful OCR
+                try { sessionStorage.removeItem('bsm_uploaded'); } catch(err) {}
                 
                 setTimeout(() => {
                     statusEl.style.display = 'none';
@@ -1835,6 +1898,9 @@
             await checkServerConnection();
             await loadIndustriesToForm();
             await loadContacts();
+            
+            // Restore any images from previous mobile camera session
+            restoreUploadedImages();
             
             // Periodically check server connection
             setInterval(checkServerConnection, 30000);
