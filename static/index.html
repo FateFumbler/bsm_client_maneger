@@ -1334,14 +1334,22 @@
                 options.body = JSON.stringify(body);
             }
             
-            const response = await fetch(`${API_BASE}${endpoint}`, options);
-            
-            if (!response.ok) {
-                const error = await response.json().catch(() => ({ error: 'Request failed' }));
-                throw new Error(error.error || 'Request failed');
+            try {
+                const response = await fetch(`${API_BASE}${endpoint}`, options);
+                
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => null);
+                    const errMsg = errorData?.error || `Server error (${response.status})`;
+                    throw new Error(errMsg);
+                }
+                
+                return response.json();
+            } catch (err) {
+                if (err.name === 'TypeError' && err.message.includes('fetch')) {
+                    throw new Error('Cannot reach server. Check your connection.');
+                }
+                throw err;
             }
-            
-            return response.json();
         }
 
         // Tab switching
@@ -1357,6 +1365,35 @@
             } else if (tabName === 'contacts') {
                 loadAllContacts();
             }
+        }
+
+        // Compress image for OCR (mobile cameras produce huge files)
+        function compressImageForOCR(imageData, maxWidth = 800, quality = 0.7) {
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.onload = () => {
+                    // If already small enough, return as-is
+                    if (img.width <= maxWidth) {
+                        resolve(imageData);
+                        return;
+                    }
+                    
+                    const canvas = document.createElement('canvas');
+                    const scale = maxWidth / img.width;
+                    canvas.width = maxWidth;
+                    canvas.height = Math.round(img.height * scale);
+                    
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    
+                    // Convert to compressed JPEG
+                    const compressed = canvas.toDataURL('image/jpeg', quality);
+                    console.log(`Compressed image: ${img.width}x${img.height} → ${canvas.width}x${canvas.height}, ${(compressed.length / 1024).toFixed(0)}KB`);
+                    resolve(compressed);
+                };
+                img.onerror = () => resolve(imageData); // fallback to original
+                img.src = imageData;
+            });
         }
 
         // Image handling - mobile-friendly with reload protection
@@ -1377,15 +1414,19 @@
 
             files.forEach((file) => {
                 const reader = new FileReader();
-                reader.onload = (e) => {
+                reader.onload = async (e) => {
                     const imageData = e.target.result;
-                    // Store in sessionStorage as backup against page reload
+                    
+                    // Compress image for mobile cameras
+                    const compressed = await compressImageForOCR(imageData);
+                    
+                    // Store compressed version in sessionStorage as backup
                     try {
                         const existing = JSON.parse(sessionStorage.getItem('bsm_uploaded') || '[]');
-                        existing.push(imageData);
+                        existing.push(compressed);
                         sessionStorage.setItem('bsm_uploaded', JSON.stringify(existing));
                     } catch(err) { /* ignore quota errors */ }
-                    processImageForOCR(imageData);
+                    processImageForOCR(compressed);
                 };
                 reader.onerror = () => {
                     alert('Failed to read image file. Please try again.');
