@@ -63,7 +63,7 @@
 
         .header-left {
             display: flex;
-            align-items: center;
+            align-items: flex-start;
             gap: 12px;
             margin-bottom: 12px;
         }
@@ -84,13 +84,13 @@
         }
 
         h1 { 
-            font-size: 1.1rem; 
+            font-size: 1rem; 
             font-weight: 700; 
             color: var(--text);
             letter-spacing: -0.3px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+            white-space: normal;
+            overflow: visible;
+            line-height: 1.3;
         }
 
         .header-subtitle {
@@ -274,9 +274,9 @@
             background: var(--bg-card); 
             border-radius: var(--radius-lg); 
             box-shadow: var(--shadow); 
-            padding: 18px; 
+            padding: 20px; 
             border: 1px solid var(--border);
-            margin-bottom: 16px;
+            margin-bottom: 20px;
         }
 
         .card-title { 
@@ -378,19 +378,20 @@
 
         .uploaded-images {
             display: flex;
-            gap: 10px;
+            gap: 12px;
             margin-top: 14px;
             flex-wrap: wrap;
         }
 
         .uploaded-image {
             position: relative;
-            width: 90px;
-            height: 90px;
-            border-radius: var(--radius-sm);
+            width: 120px;
+            height: 120px;
+            border-radius: var(--radius);
             overflow: hidden;
             border: 2px solid var(--border);
             background: var(--border-light);
+            box-shadow: var(--shadow-md);
         }
 
         .uploaded-image img {
@@ -401,30 +402,31 @@
 
         .uploaded-image .side-badge {
             position: absolute;
-            top: 4px;
-            left: 4px;
+            top: 6px;
+            left: 6px;
             background: var(--primary);
             color: #fff;
-            font-size: 0.6rem;
+            font-size: 0.65rem;
             font-weight: 700;
-            padding: 2px 6px;
-            border-radius: 3px;
+            padding: 4px 8px;
+            border-radius: 4px;
             text-transform: uppercase;
             letter-spacing: 0.3px;
+            box-shadow: var(--shadow);
         }
 
         .uploaded-image .remove-btn {
             position: absolute;
-            top: 2px;
-            right: 2px;
+            top: 4px;
+            right: 4px;
             background: var(--danger);
             color: #fff;
             border: none;
             border-radius: 50%;
-            width: 24px;
-            height: 24px;
+            width: 28px;
+            height: 28px;
             cursor: pointer;
-            font-size: 16px;
+            font-size: 18px;
             line-height: 1;
             display: flex;
             align-items: center;
@@ -855,6 +857,46 @@
             display: flex; 
         }
 
+        /* Toast notification */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: var(--text);
+            color: #fff;
+            padding: 14px 24px;
+            border-radius: var(--radius);
+            font-size: 0.9rem;
+            font-weight: 500;
+            z-index: 1001;
+            opacity: 0;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: var(--shadow-lg);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            max-width: 90%;
+            text-align: center;
+        }
+
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+
+        .toast.success {
+            background: var(--success);
+        }
+
+        .toast.error {
+            background: var(--danger);
+        }
+
+        .toast-icon {
+            font-size: 1.1rem;
+        }
+
         .spinner { 
             width: 44px; 
             height: 44px; 
@@ -1089,11 +1131,11 @@
                         <input type="file" id="cameraInput" accept="image/*" capture="environment" multiple onchange="handleImageUpload(this)" style="display:none">
                         <div class="upload-icon">📷</div>
                         <div class="upload-text">Tap to select images</div>
-                        <div class="upload-hint">Choose from gallery or camera (max 2 images)</div>
+                        <div class="upload-hint">Take front & back of card together</div>
                     </div>
                     <div class="upload-buttons-mobile">
-                        <button type="button" class="btn btn-secondary" onclick="event.stopPropagation(); document.getElementById('cameraInput').click()" style="margin-top:8px;flex:1">
-                            📸 Take Photo
+                        <button type="button" class="btn btn-primary" onclick="event.stopPropagation(); document.getElementById('cameraInput').click()" style="margin-top:8px;flex:1">
+                            📸 Take Photo (Front)
                         </button>
                         <button type="button" class="btn btn-secondary" onclick="event.stopPropagation(); document.getElementById('cardInput').click()" style="margin-top:8px;flex:1">
                             🖼️ From Gallery
@@ -1291,6 +1333,11 @@
         <p class="loading-text">Processing OCR...</p>
     </div>
 
+    <div class="toast" id="toast">
+        <span class="toast-icon"></span>
+        <span class="toast-message"></span>
+    </div>
+
     <script>
         // API Base URL - uses relative path for same-server deployment
         const API_BASE = '';
@@ -1299,6 +1346,34 @@
         let uploadedImages = [];
         let currentEditIndustryId = null;
         let serverConnected = false;
+        
+        // Multi-photo capture state
+        let pendingCameraImages = []; // Images captured via camera, awaiting OCR
+        let isCameraMode = false; // Track if we're in camera capture mode
+        
+        // Save button state
+        let isSaving = false;
+
+        // Toast notification
+        function showToast(message, type = 'default', duration = 3000) {
+            const toast = document.getElementById('toast');
+            const toastIcon = toast.querySelector('.toast-icon');
+            const toastMessage = toast.querySelector('.toast-message');
+            
+            toast.className = 'toast';
+            if (type !== 'default') toast.classList.add(type);
+            
+            if (type === 'success') toastIcon.textContent = '✓';
+            else if (type === 'error') toastIcon.textContent = '✕';
+            else toastIcon.textContent = 'ℹ';
+            
+            toastMessage.textContent = message;
+            toast.classList.add('show');
+            
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, duration);
+        }
 
         // Check server connection
         async function checkServerConnection() {
@@ -1401,40 +1476,154 @@
             const files = Array.from(input.files);
             if (files.length === 0) return;
 
-            if (files.length > 2) {
-                alert('Please select maximum 2 images');
-                input.value = '';
-                return;
-            }
-
             // Clear previous session data on new upload
             try { sessionStorage.removeItem('bsm_uploaded'); } catch(err) {}
             
-            uploadedImages = [];
-
-            files.forEach((file) => {
-                const reader = new FileReader();
-                reader.onload = async (e) => {
-                    const imageData = e.target.result;
-                    
-                    // Compress image for mobile cameras
-                    const compressed = await compressImageForOCR(imageData);
-                    
-                    // Store compressed version in sessionStorage as backup
-                    try {
-                        const existing = JSON.parse(sessionStorage.getItem('bsm_uploaded') || '[]');
-                        existing.push(compressed);
-                        sessionStorage.setItem('bsm_uploaded', JSON.stringify(existing));
-                    } catch(err) { /* ignore quota errors */ }
-                    processImageForOCR(compressed);
-                };
-                reader.onerror = () => {
-                    alert('Failed to read image file. Please try again.');
-                };
-                reader.readAsDataURL(file);
-            });
+            // Check if this is from camera input
+            const isFromCamera = input.id === 'cameraInput';
+            
+            if (isFromCamera) {
+                // Camera mode: handle sequential capture (front then back)
+                handleCameraCapture(files);
+            } else {
+                // Gallery mode: allow up to 2 images, process immediately
+                if (files.length > 2) {
+                    showToast('Please select maximum 2 images', 'error');
+                    input.value = '';
+                    return;
+                }
+                
+                uploadedImages = [];
+                files.forEach((file) => {
+                    const reader = new FileReader();
+                    reader.onload = async (e) => {
+                        const imageData = e.target.result;
+                        const compressed = await compressImageForOCR(imageData);
+                        processImageForOCR(compressed);
+                    };
+                    reader.onerror = () => {
+                        showToast('Failed to read image file', 'error');
+                    };
+                    reader.readAsDataURL(file);
+                });
+            }
 
             input.value = '';
+        }
+        
+        // Handle camera capture - sequential front then back
+        function handleCameraCapture(files) {
+            if (files.length === 0) return;
+            
+            const file = files[0];
+            const reader = new FileReader();
+            
+            reader.onload = async (e) => {
+                const imageData = e.target.result;
+                const compressed = await compressImageForOCR(imageData);
+                
+                pendingCameraImages.push(compressed);
+                
+                if (pendingCameraImages.length === 1) {
+                    // First photo taken - show preview with options
+                    showCameraPreview(compressed, 'front');
+                } else if (pendingCameraImages.length === 2) {
+                    // Second photo taken - show preview then process
+                    showCameraPreview(compressed, 'back', true);
+                }
+            };
+            
+            reader.onerror = () => {
+                showToast('Failed to read camera image', 'error');
+            };
+            
+            reader.readAsDataURL(file);
+        }
+        
+        // Show camera preview with capture back/done options
+        function showCameraPreview(imageData, side, shouldProcess = false) {
+            const statusEl = document.getElementById('ocrStatus');
+            const previewNum = side === 'front' ? '1/2' : '2/2';
+            const sideLabel = side === 'front' ? 'Front' : 'Back';
+            
+            // Create a modal-like preview overlay
+            const existingPreview = document.getElementById('cameraPreview');
+            if (existingPreview) existingPreview.remove();
+            
+            const preview = document.createElement('div');
+            preview.id = 'cameraPreview';
+            preview.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(15, 23, 42, 0.95);
+                z-index: 1000;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                padding: 20px;
+                backdrop-filter: blur(8px);
+            `;
+            
+            preview.innerHTML = `
+                <div style="color: #fff; font-size: 1.1rem; font-weight: 600; margin-bottom: 16px;">
+                    ${sideLabel} (${previewNum})
+                </div>
+                <img src="${imageData}" style="max-width: 100%; max-height: 60vh; border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.5);" />
+                <div style="display: flex; gap: 12px; margin-top: 24px; flex-wrap: wrap; justify-content: center;">
+                    ${side === 'front' ? `
+                        <button class="btn btn-primary" onclick="captureBackSide()" style="min-width: 140px;">
+                            📷 Capture Back
+                        </button>
+                    ` : ''}
+                    <button class="btn btn-success" onclick="processCameraImages()" style="min-width: 140px;">
+                        ✓ ${shouldProcess ? 'Process' : 'Done'}
+                    </button>
+                    <button class="btn btn-ghost" onclick="cancelCameraCapture()" style="background: rgba(255,255,255,0.1); color: #fff; border: 1px solid rgba(255,255,255,0.2); min-width: 140px;">
+                        Cancel
+                    </button>
+                </div>
+            `;
+            
+            document.body.appendChild(preview);
+        }
+        
+        // Capture the back side of the card
+        function captureBackSide() {
+            const preview = document.getElementById('cameraPreview');
+            if (preview) preview.remove();
+            
+            // Trigger camera input again for back side
+            const cameraInput = document.getElementById('cameraInput');
+            cameraInput.value = ''; // Clear to allow re-selection
+            cameraInput.click();
+        }
+        
+        // Process camera images after capture is complete
+        function processCameraImages() {
+            const preview = document.getElementById('cameraPreview');
+            if (preview) preview.remove();
+            
+            // Process all pending images
+            uploadedImages = [];
+            pendingCameraImages.forEach(img => {
+                processImageForOCR(img);
+            });
+            
+            pendingCameraImages = [];
+        }
+        
+        // Cancel camera capture
+        function cancelCameraCapture() {
+            const preview = document.getElementById('cameraPreview');
+            if (preview) preview.remove();
+            
+            pendingCameraImages = [];
+            uploadedImages = [];
+            updateUploadedImagesPreview();
         }
         
         // Restore images from sessionStorage after mobile camera reload
@@ -1582,6 +1771,11 @@
 
         // Save contact
         async function saveContact() {
+            // Prevent double-tap / duplicate submission
+            if (isSaving) return;
+            
+            const saveBtn = document.querySelector('#tab-capture .btn-primary');
+            
             const contact = {
                 fullName: document.getElementById('fullName').value.trim(),
                 company: document.getElementById('company').value.trim(),
@@ -1594,17 +1788,50 @@
             };
             
             if (!contact.fullName && !contact.company) {
-                alert('Please enter at least a name or company');
+                showToast('Please enter at least a name or company', 'error');
                 return;
             }
+            
+            // Set saving state and update button
+            isSaving = true;
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = '<div class="ocr-spinner" style="width:18px;height:18px;border-width:2px;border-color:rgba(255,255,255,0.3);border-top-color:#fff;"></div> Saving...';
+            saveBtn.style.opacity = '0.8';
             
             try {
                 await apiCall('/api/contacts', 'POST', contact);
                 await loadContacts();
-                resetForm();
+                
+                // Show success toast
+                showToast('✓ Contact saved successfully!', 'success');
+                
+                // Update button to show success
+                saveBtn.innerHTML = '✓ Saved!';
+                saveBtn.classList.remove('btn-primary');
+                saveBtn.classList.add('btn-success');
+                
+                // Reset form after short delay
+                setTimeout(() => {
+                    resetForm();
+                    
+                    // Reset button state
+                    saveBtn.disabled = false;
+                    saveBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save Contact';
+                    saveBtn.classList.remove('btn-success');
+                    saveBtn.classList.add('btn-primary');
+                    saveBtn.style.opacity = '1';
+                    isSaving = false;
+                }, 1500);
+                
             } catch (error) {
                 console.error('Failed to save contact:', error);
-                alert('Failed to save contact. Please try again.');
+                showToast('Failed to save contact: ' + error.message, 'error');
+                
+                // Reset button state on error
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save Contact';
+                saveBtn.style.opacity = '1';
+                isSaving = false;
             }
         }
 
@@ -1621,9 +1848,12 @@
             document.getElementById('industryCustomWrapper').classList.remove('visible');
             
             uploadedImages = [];
+            pendingCameraImages = [];
             updateUploadedImagesPreview();
             
-            document.getElementById('ocrStatus').style.display = 'none';
+            const ocrStatus = document.getElementById('ocrStatus');
+            ocrStatus.style.display = 'none';
+            ocrStatus.className = 'ocr-status';
         }
 
         // Render contact card
