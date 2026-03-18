@@ -802,7 +802,9 @@ def health_check():
         'turso_url_set': bool(TURSO_DB_URL),
         'turso_token_set': bool(TURSO_AUTH_TOKEN),
         'turso_available': TURSO_AVAILABLE,
-        'turso_error': _turso_error
+        'turso_error': _turso_error,
+        'turso_url_preview': repr(TURSO_DB_URL[:40]) if TURSO_DB_URL else None,
+        'turso_url_len': len(TURSO_DB_URL) if TURSO_DB_URL else 0
     })
 
 # Initialize database on startup
