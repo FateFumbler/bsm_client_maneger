@@ -78,7 +78,7 @@ CORS(app)
 # Database initialization
 def init_database():
     """Initialize database with contacts and industries tables"""
-    global TURSO_AVAILABLE
+    global TURSO_AVAILABLE, _turso_error
     
     # Test Turso connection first
     if TURSO_DB_URL and TURSO_AUTH_TOKEN:
