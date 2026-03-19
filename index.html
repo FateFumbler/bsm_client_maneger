@@ -1797,9 +1797,6 @@
                     <div class="stat-label">This Month</div>
                 </div>
             </div>
-            
-            <!-- Industry breakdown -->
-            <div id="industryStats" style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px;"></div>
         </header>
 
         <!-- Tabs -->
@@ -2221,15 +2218,6 @@
                 document.getElementById('todayContacts').textContent = data.today || 0;
                 document.getElementById('weekContacts').textContent = data.this_week || 0;
                 document.getElementById('monthContacts').textContent = data.this_month || 0;
-                
-                // Industry breakdown
-                const industryStats = document.getElementById('industryStats');
-                industryStats.innerHTML = '';
-                const byIndustry = data.by_industry || {};
-                for (const [industry, count] of Object.entries(byIndustry).slice(0, 4)) {
-                    const badgeClass = industry.toLowerCase().replace(/\s+/g, '');
-                    industryStats.innerHTML += `<span class="industry-badge ${badgeClass}">${industry}: ${count}</span>`;
-                }
             } catch (err) {
                 console.error('Failed to load stats:', err);
             }
