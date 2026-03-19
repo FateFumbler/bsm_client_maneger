@@ -64,7 +64,9 @@ def get_db():
             _turso_conn = None
     
     # Use local SQLite (development or fallback) — close() works normally here
-    return sqlite3.connect(DATABASE_PATH)
+    conn = sqlite3.connect(DATABASE_PATH)
+    conn.row_factory = sqlite3.Row  # Enable dict-like row access for dict_from_row()
+    return conn
 
 # OpenAI Configuration
 OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
