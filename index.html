@@ -2195,10 +2195,11 @@
 
         // Dark mode toggle
         function toggleDarkMode() {
-            document.body.classList.toggle('dark-mode');
-            const isDark = document.body.classList.contains('dark-mode');
+            const isDark = document.body.classList.toggle('dark-mode');
             localStorage.setItem('darkMode', isDark);
-            document.querySelector('.dark-mode-toggle').textContent = isDark ? '☀️' : '🌙';
+            const btn = document.querySelector('.dark-mode-toggle');
+            if (btn) btn.textContent = isDark ? '☀️' : '🌙';
+            console.log('Dark mode:', isDark, 'body classes:', document.body.className);
         }
 
         // Toast notification
