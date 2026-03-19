@@ -1917,12 +1917,6 @@
                     
                     ${contact.industry ? `<span class="contact-card-industry">${escapeHtml(contact.industry)}</span>` : ''}
                     
-                    ${contact.images && contact.images.length > 0 ? `
-                        <div class="contact-card-images">
-                            ${contact.images.map((img, idx) => `<img src="${img}" class="contact-card-thumb" onclick="viewImage('${img}')" alt="Card ${idx + 1}">`).join('')}
-                        </div>
-                    ` : ''}
-                    
                     ${showDate && contact.created_at ? `<div class="contact-card-date">Added: ${new Date(contact.created_at).toLocaleDateString()}</div>` : ''}
                 </div>
             `;
@@ -1958,11 +1952,7 @@
                         <td>${escapeHtml(contact.email || '-')}</td>
                         <td>${escapeHtml(contact.website || '-')}</td>
                         <td>${escapeHtml(contact.industry || '-')}</td>
-                        <td>
-                            <div class="thumbnails-cell">
-                                ${(contact.images || []).map((img, idx) => `<img src="${img}" class="thumb-cell" onclick="viewImage('${img}')" title="Image ${idx + 1}">`).join('')}
-                            </div>
-                        </td>
+                        <td><span style="color:#888;font-size:12px">View details</span></td>
                         <td>
                             <div class="table-actions">
                                 <button class="btn btn-danger btn-sm" onclick="deleteContactById(${contact.id})">Delete</button>
@@ -2003,11 +1993,7 @@
                         <td>${escapeHtml(contact.website || '-')}</td>
                         <td>${escapeHtml(contact.industry || '-')}</td>
                         <td>${contact.created_at ? new Date(contact.created_at).toLocaleDateString() : '-'}</td>
-                        <td>
-                            <div class="thumbnails-cell">
-                                ${(contact.images || []).map((img, idx) => `<img src="${img}" class="thumb-cell" onclick="viewImage('${img}')" title="Image ${idx + 1}">`).join('')}
-                            </div>
-                        </td>
+                        <td><span style="color:#888;font-size:12px">View details</span></td>
                         <td>
                             <div class="table-actions">
                                 <button class="btn btn-danger btn-sm" onclick="deleteContactById(${contact.id})">Delete</button>

@@ -382,7 +382,9 @@ def get_contacts():
     db = get_db()
     try:
         # Turso: use db.execute() and fetchall()
-        result = db.execute('SELECT id, full_name, company, designation, phone, email, website, industry, images, created_at FROM contacts ORDER BY created_at DESC')
+        # Note: images excluded from list view for performance (12MB+ savings)
+        # Fetch images individually per contact via /api/contacts/<id>/images
+        result = db.execute('SELECT id, full_name, company, designation, phone, email, website, industry, created_at FROM contacts ORDER BY created_at DESC')
         
         # Use fetchall() which works for both Turso and SQLite
         try:
@@ -395,7 +397,7 @@ def get_contacts():
             # Handle both Turso (tuple) and SQLite (Row object)
             if hasattr(row, '_asdict'):  # SQLite Row
                 contact = row._asdict()
-                contact['images'] = json.loads(contact.get('images', '[]')) if contact.get('images') else []
+                # images excluded from list — fetch via /api/contacts/<id>/images
             elif isinstance(row, (list, tuple)):  # Turso tuple
                 contact = {
                     'id': row[0],
@@ -406,8 +408,7 @@ def get_contacts():
                     'email': row[5],
                     'website': row[6],
                     'industry': row[7],
-                    'images': json.loads(row[8]) if row[8] else [],
-                    'created_at': row[9]
+                    'created_at': row[8]
                 }
             else:
                 # Fallback: try to convert to dict
@@ -417,6 +418,26 @@ def get_contacts():
                     contact = {'_raw': str(row)}
             contacts.append(contact)
         return jsonify(contacts), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    finally:
+        db.close()
+
+@app.route('/api/contacts/<int:contact_id>/images', methods=['GET'])
+def get_contact_images(contact_id):
+    """Get images for a specific contact (lazy load)"""
+    db = get_db()
+    try:
+        result = db.execute('SELECT images FROM contacts WHERE id = ?', (contact_id,))
+        try:
+            rows = result.fetchall()
+        except Exception:
+            rows = []
+        if not rows:
+            return jsonify({'error': 'Contact not found'}), 404
+        row = rows[0]
+        images = json.loads(row[0]) if row[0] else []
+        return jsonify({'images': images}), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
     finally:
