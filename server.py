@@ -857,9 +857,14 @@ def update_industry(industry_id):
         
         # Check rows affected - Turso uses rows_affected, SQLite uses rowcount
         try:
-            rows_affected = result.rows_affected if hasattr(result, 'rows_affected') else 0
+            if hasattr(result, 'rows_affected'):
+                rows_affected = result.rows_affected
+            elif hasattr(result, 'rowcount'):
+                rows_affected = result.rowcount
+            else:
+                rows_affected = 1  # Assume success if unknown
         except:
-            rows_affected = 0
+            rows_affected = 1  # Assume success if unknown
         
         if rows_affected == 0:
             db.close()
