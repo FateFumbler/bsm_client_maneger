@@ -878,6 +878,13 @@
             min-width: 0;
         }
 
+        .contact-card-name-row {
+            display: flex;
+            align-items: baseline;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
         .contact-card-name {
             font-size: 1.1rem;
             font-weight: 700;
@@ -892,10 +899,9 @@
         }
 
         .contact-card-designation {
-            font-size: 0.8rem;
+            font-size: 0.85rem;
             color: var(--primary);
             font-weight: 500;
-            margin-top: 4px;
         }
 
         .contact-card-actions {
@@ -1621,6 +1627,16 @@
             
             .contact-card-name {
                 font-size: 1rem;
+            }
+
+            .contact-card-name-row {
+                flex-direction: row;
+                align-items: baseline;
+                gap: 6px;
+            }
+
+            .contact-card-designation {
+                font-size: 0.8rem;
             }
             
             .contact-card-details {
@@ -2489,9 +2505,11 @@
                     <div class="contact-checkbox" onclick="toggleContactSelect(${contact.id}, event)"></div>
                     <div class="contact-card-header">
                         <div class="contact-card-main">
-                            <div class="contact-card-name">${escapeHtml(contact.full_name || 'No Name')}</div>
+                            <div class="contact-card-name-row">
+                                <div class="contact-card-name">${escapeHtml(contact.full_name || 'No Name')}</div>
+                                ${contact.designation ? `<div class="contact-card-designation">${escapeHtml(contact.designation)}</div>` : ''}
+                            </div>
                             ${contact.company ? `<div class="contact-card-company">${escapeHtml(contact.company)}</div>` : ''}
-                            ${contact.designation ? `<div class="contact-card-designation">${escapeHtml(contact.designation)}</div>` : ''}
                         </div>
                         <div class="contact-card-actions">
                             ${hasPhone ? `
@@ -2499,7 +2517,6 @@
                                 ${hasWhatsApp ? `<a href="https://wa.me/${contact.phone.replace(/\D/g, '')}" target="_blank" class="contact-action-btn whatsapp" title="WhatsApp">💬</a>` : ''}
                             ` : ''}
                             <button class="contact-action-btn" onclick="openEditModal(${contact.id})" title="Edit">✏️</button>
-                            <button class="contact-action-btn delete" onclick="deleteContact(${contact.id})" title="Delete">🗑️</button>
                         </div>
                     </div>
                     
