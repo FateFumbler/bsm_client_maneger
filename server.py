@@ -107,6 +107,7 @@ def init_database():
             email TEXT,
             website TEXT,
             industry TEXT,
+            notes TEXT DEFAULT '',
             images TEXT,
             created_at TEXT
         )
@@ -136,6 +137,12 @@ def init_database():
     
     for industry in default_industries:
         db.execute('INSERT OR IGNORE INTO industries (id, name, is_default) VALUES (?, ?, ?)', industry)
+    
+    # Add notes column to contacts if not exists
+    try:
+        db.execute('ALTER TABLE contacts ADD COLUMN notes TEXT DEFAULT ""')
+    except:
+        pass  # Column may already exist
     
     # Add index on created_at for fast ordering
     try:
@@ -384,7 +391,7 @@ def get_contacts():
         # Turso: use db.execute() and fetchall()
         # Note: images excluded from list view for performance (12MB+ savings)
         # Fetch images individually per contact via /api/contacts/<id>/images
-        result = db.execute('SELECT id, full_name, company, designation, phone, email, website, industry, created_at FROM contacts ORDER BY created_at DESC')
+        result = db.execute('SELECT id, full_name, company, designation, phone, email, website, industry, notes, created_at FROM contacts ORDER BY created_at DESC')
         
         # Use fetchall() which works for both Turso and SQLite
         try:
@@ -408,7 +415,8 @@ def get_contacts():
                     'email': row[5],
                     'website': row[6],
                     'industry': row[7],
-                    'created_at': row[8]
+                    'notes': row[8] if len(row) > 8 else '',
+                    'created_at': row[9] if len(row) > 9 else row[8]
                 }
             else:
                 # Fallback: try to convert to dict
@@ -462,8 +470,8 @@ def create_contact():
         images_json = json.dumps(data.get('images', []))
         
         result = db.execute('''
-            INSERT INTO contacts (full_name, company, designation, phone, email, website, industry, images, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO contacts (full_name, company, designation, phone, email, website, industry, notes, images, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             data.get('fullName'),
             data.get('company'),
@@ -472,6 +480,7 @@ def create_contact():
             data.get('email'),
             data.get('website'),
             data.get('industry'),
+            data.get('notes', ''),
             images_json,
             datetime.now().isoformat()
         ))
@@ -547,6 +556,216 @@ def clear_all_contacts():
         return jsonify({'message': 'All contacts cleared'})
     except Exception as e:
         print(f"Error clearing contacts: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/contacts/<int:contact_id>', methods=['PATCH'])
+def update_contact(contact_id):
+    """Update a contact"""
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+        
+        db = get_db()
+        
+        # Build dynamic update query
+        allowed_fields = ['full_name', 'company', 'designation', 'phone', 'email', 'website', 'industry', 'notes', 'images']
+        updates = []
+        values = []
+        
+        field_mapping = {
+            'fullName': 'full_name',
+            'company': 'company',
+            'designation': 'designation',
+            'phone': 'phone',
+            'email': 'email',
+            'website': 'website',
+            'industry': 'industry',
+            'notes': 'notes',
+            'images': 'images'
+        }
+        
+        for key, db_field in field_mapping.items():
+            if key in data:
+                if db_field == 'images':
+                    updates.append(f'{db_field} = ?')
+                    values.append(json.dumps(data[key]))
+                else:
+                    updates.append(f'{db_field} = ?')
+                    values.append(data[key])
+        
+        if not updates:
+            db.close()
+            return jsonify({'error': 'No valid fields to update'}), 400
+        
+        values.append(contact_id)
+        query = f"UPDATE contacts SET {', '.join(updates)} WHERE id = ?"
+        
+        result = db.execute(query, values)
+        
+        try:
+            rows_affected = result.rows_affected if hasattr(result, 'rows_affected') else result.rowcount
+        except:
+            rows_affected = 0
+        
+        db.commit()
+        db.close()
+        
+        if rows_affected == 0:
+            return jsonify({'error': 'Contact not found'}), 404
+        
+        return jsonify({'message': 'Contact updated successfully'}), 200
+    except Exception as e:
+        print(f"Error updating contact: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/contacts/bulk', methods=['PATCH'])
+def bulk_update_contacts():
+    """Bulk update contacts (delete, assign industry)"""
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+        
+        action = data.get('action')
+        contact_ids = data.get('ids', [])
+        
+        if not contact_ids:
+            return jsonify({'error': 'No contact IDs provided'}), 400
+        
+        if not isinstance(contact_ids, list):
+            return jsonify({'error': 'ids must be a list'}), 400
+        
+        db = get_db()
+        
+        if action == 'delete':
+            placeholders = ','.join('?' * len(contact_ids))
+            db.execute(f'DELETE FROM contacts WHERE id IN ({placeholders})', contact_ids)
+            db.commit()
+            db.close()
+            return jsonify({'message': f'{len(contact_ids)} contacts deleted'}), 200
+        
+        elif action == 'update_industry':
+            industry = data.get('industry', '')
+            placeholders = ','.join('?' * len(contact_ids))
+            db.execute(f'UPDATE contacts SET industry = ? WHERE id IN ({placeholders})', [industry] + contact_ids)
+            db.commit()
+            db.close()
+            return jsonify({'message': f'{len(contact_ids)} contacts updated'}), 200
+        
+        elif action == 'delete_all':
+            db.execute('DELETE FROM contacts')
+            db.commit()
+            db.close()
+            return jsonify({'message': 'All contacts deleted'}), 200
+        
+        else:
+            db.close()
+            return jsonify({'error': f'Unknown action: {action}'}), 400
+    
+    except Exception as e:
+        print(f"Error in bulk update: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/stats', methods=['GET'])
+def get_stats():
+    """Get dashboard statistics"""
+    try:
+        from datetime import datetime, timedelta
+        
+        db = get_db()
+        
+        # Total contacts
+        result = db.execute('SELECT COUNT(*) as count FROM contacts')
+        try:
+            rows = result.fetchall()
+            total = rows[0][0] if rows else 0
+        except:
+            total = 0
+        
+        # Contacts added today
+        today = datetime.now().strftime('%Y-%m-%d')
+        result = db.execute('SELECT COUNT(*) as count FROM contacts WHERE date(created_at) = ?', (today,))
+        try:
+            rows = result.fetchall()
+            today_count = rows[0][0] if rows else 0
+        except:
+            today_count = 0
+        
+        # Contacts added this week
+        week_ago = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
+        result = db.execute('SELECT COUNT(*) as count FROM contacts WHERE date(created_at) >= ?', (week_ago,))
+        try:
+            rows = result.fetchall()
+            week_count = rows[0][0] if rows else 0
+        except:
+            week_count = 0
+        
+        # Contacts added this month
+        month_ago = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
+        result = db.execute('SELECT COUNT(*) as count FROM contacts WHERE date(created_at) >= ?', (month_ago,))
+        try:
+            rows = result.fetchall()
+            month_count = rows[0][0] if rows else 0
+        except:
+            month_count = 0
+        
+        # Contacts by industry
+        result = db.execute('''
+            SELECT industry, COUNT(*) as count 
+            FROM contacts 
+            WHERE industry IS NOT NULL AND industry != ''
+            GROUP BY industry
+            ORDER BY count DESC
+        ''')
+        try:
+            rows = result.fetchall()
+            by_industry = {row[0]: row[1] for row in rows}
+        except:
+            by_industry = {}
+        
+        # Recent contacts (last 5)
+        result = db.execute('''
+            SELECT id, full_name, company, industry, created_at 
+            FROM contacts 
+            ORDER BY created_at DESC 
+            LIMIT 5
+        ''')
+        try:
+            rows = result.fetchall()
+            recent = []
+            for row in rows:
+                recent.append({
+                    'id': row[0],
+                    'full_name': row[1] or 'Unknown',
+                    'company': row[2] or '',
+                    'industry': row[3] or '',
+                    'created_at': row[4]
+                })
+        except:
+            recent = []
+        
+        db.close()
+        
+        return jsonify({
+            'total': total,
+            'today': today_count,
+            'this_week': week_count,
+            'this_month': month_count,
+            'by_industry': by_industry,
+            'recent': recent
+        }), 200
+    
+    except Exception as e:
+        print(f"Error getting stats: {e}")
         import traceback
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500
@@ -775,7 +994,7 @@ def export_excel():
         writer = csv.writer(output)
         
         # Header
-        writer.writerow(['Name', 'Company', 'Designation', 'Phone', 'Email', 'Website', 'Industry', 'Created At'])
+        writer.writerow(['Name', 'Company', 'Designation', 'Phone', 'Email', 'Website', 'Industry', 'Notes', 'Created At'])
         
         # Data
         for row in rows:
@@ -790,6 +1009,7 @@ def export_excel():
                 row_dict.get('email', ''),
                 row_dict.get('website', ''),
                 row_dict.get('industry', ''),
+                row_dict.get('notes', ''),
                 row_dict.get('created_at', '')
             ])
         
