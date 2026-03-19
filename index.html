@@ -1068,6 +1068,130 @@
             animation: fadeIn 0.2s ease;
         }
 
+        /* Image Source Choice Modal */
+        .image-source-modal {
+            background: var(--bg-card);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-lg);
+            padding: 28px;
+            width: 100%;
+            max-width: 360px;
+            text-align: center;
+        }
+
+        .image-source-modal h3 {
+            margin-bottom: 20px;
+            font-size: 1.15rem;
+        }
+
+        .source-buttons {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .source-btn {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            padding: 20px 12px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .source-btn:hover {
+            border-color: var(--primary);
+            background: var(--primary-light);
+        }
+
+        .source-icon {
+            font-size: 2rem;
+        }
+
+        .source-label {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .source-cancel {
+            width: 100%;
+            padding: 12px;
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            cursor: pointer;
+        }
+
+        .source-cancel:hover {
+            background: var(--bg);
+        }
+
+        /* Camera Capture Modal */
+        .camera-modal {
+            background: #000;
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-lg);
+            width: 100%;
+            max-width: 400px;
+            overflow: hidden;
+        }
+
+        .camera-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+            font-weight: 600;
+        }
+
+        .camera-close {
+            background: none;
+            border: none;
+            color: #fff;
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0 4px;
+            line-height: 1;
+        }
+
+        .camera-modal video {
+            width: 100%;
+            display: block;
+            max-height: 60vh;
+            object-fit: cover;
+        }
+
+        .camera-controls {
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            background: rgba(255,255,255,0.05);
+        }
+
+        .capture-btn {
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            background: #fff;
+            border: 4px solid rgba(255,255,255,0.3);
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+
+        .capture-btn:active {
+            transform: scale(0.9);
+        }
+
         /* Password Modal */
         .password-modal {
             background: var(--bg-card);
@@ -1904,11 +2028,13 @@
                 
                 <!-- Upload Section - Fixed for mobile -->
                 <div class="upload-section">
-                    <div class="upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click()">
+                    <div class="upload-area" id="uploadArea" onclick="showImageSourceChoice()">
                         <input type="file" id="fileInput" accept="image/*" multiple onchange="handleImageUpload(this)" style="display:none">
+                        <!-- Hidden camera input for capture=environment fallback -->
+                        <input type="file" id="cameraInput" accept="image/*" capture="environment" onchange="handleImageUpload(this)" style="display:none">
                         <div class="upload-icon">📷</div>
-                        <div class="upload-text">Tap to select images</div>
-                        <div class="upload-hint">Choose from gallery or camera (max 2 images)</div>
+                        <div class="upload-text">Tap to capture or upload</div>
+                        <div class="upload-hint">Max 2 images</div>
                     </div>
                     
                     <div class="uploaded-images" id="uploadedImages"></div>
@@ -2222,6 +2348,39 @@
     <div class="toast" id="toast"></div>
 
     <!-- Dark mode toggle -->
+    <!-- Image Source Choice Modal (Camera vs Gallery) -->
+    <div class="modal-overlay" id="imageSourceModal">
+        <div class="image-source-modal">
+            <h3>📷 Choose Image Source</h3>
+            <div class="source-buttons">
+                <button class="source-btn" onclick="chooseCameraSource()">
+                    <span class="source-icon">📸</span>
+                    <span class="source-label">Camera</span>
+                </button>
+                <button class="source-btn" onclick="chooseGallerySource()">
+                    <span class="source-icon">🖼️</span>
+                    <span class="source-label">Gallery</span>
+                </button>
+            </div>
+            <button class="source-cancel" onclick="closeImageSourceModal()">Cancel</button>
+        </div>
+    </div>
+
+    <!-- Camera Capture Modal -->
+    <div class="modal-overlay" id="cameraModal">
+        <div class="camera-modal">
+            <div class="camera-header">
+                <span>📷 Capture Photo</span>
+                <button class="camera-close" onclick="closeCameraModal()">×</button>
+            </div>
+            <video id="cameraVideo" autoplay playsinline></video>
+            <canvas id="cameraCanvas" style="display:none"></canvas>
+            <div class="camera-controls">
+                <button class="camera-btn capture-btn" onclick="captureFromCamera()">⬤</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Password Protection Modal for Settings -->
     <div class="modal-overlay" id="passwordModal">
         <div class="password-modal">
@@ -3023,6 +3182,77 @@
             if (name) document.getElementById('fullName').value = name;
             if (company) document.getElementById('company').value = company;
             if (designation) document.getElementById('designation').value = designation;
+        }
+
+        // Image Source Choice (Camera vs Gallery)
+        function showImageSourceChoice() {
+            document.getElementById('imageSourceModal').classList.add('active');
+        }
+
+        function closeImageSourceModal() {
+            document.getElementById('imageSourceModal').classList.remove('active');
+        }
+
+        function chooseGallerySource() {
+            closeImageSourceModal();
+            document.getElementById('fileInput').click();
+        }
+
+        let cameraStream = null;
+
+        async function chooseCameraSource() {
+            closeImageSourceModal();
+            const video = document.getElementById('cameraVideo');
+            const modal = document.getElementById('cameraModal');
+
+            try {
+                // Try to get camera stream
+                cameraStream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'environment' }
+                });
+                video.srcObject = cameraStream;
+                modal.classList.add('active');
+            } catch (err) {
+                console.log('Camera not available, using file input:', err);
+                // Fallback to file input with capture attribute
+                document.getElementById('cameraInput').click();
+            }
+        }
+
+        function closeCameraModal() {
+            const video = document.getElementById('cameraVideo');
+            const modal = document.getElementById('cameraModal');
+
+            if (cameraStream) {
+                cameraStream.getTracks().forEach(track => track.stop());
+                cameraStream = null;
+            }
+            video.srcObject = null;
+            modal.classList.remove('active');
+        }
+
+        function captureFromCamera() {
+            const video = document.getElementById('cameraVideo');
+            const canvas = document.getElementById('cameraCanvas');
+
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0);
+
+            // Convert to file
+            canvas.toBlob((blob) => {
+                if (blob) {
+                    const file = new File([blob], 'camera_capture.jpg', { type: 'image/jpeg' });
+                    const dataTransfer = new DataTransfer();
+                    dataTransfer.items.add(file);
+                    const input = document.getElementById('fileInput');
+                    input.files = dataTransfer.files;
+                    closeCameraModal();
+                    handleImageUpload(input);
+                }
+            }, 'image/jpeg', 0.85);
         }
 
         // Drag and drop
