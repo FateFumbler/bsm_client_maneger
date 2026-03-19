@@ -2255,7 +2255,16 @@
                         ? '<option value="">All Industries</option>'
                         : '<option value="">Select Industry...</option>';
                     
-                    industries.forEach(ind => {
+                    // Sort: "Other" entries go to the bottom
+                    const sortedIndustries = [...industries].sort((a, b) => {
+                        const aIsOther = a.name.toLowerCase().includes('other');
+                        const bIsOther = b.name.toLowerCase().includes('other');
+                        if (aIsOther && !bIsOther) return 1;
+                        if (!aIsOther && bIsOther) return -1;
+                        return a.name.localeCompare(b.name);
+                    });
+                    
+                    sortedIndustries.forEach(ind => {
                         select.innerHTML += `<option value="${ind.name}">${ind.name}</option>`;
                     });
                 });
