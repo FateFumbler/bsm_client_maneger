@@ -1068,6 +1068,69 @@
             animation: fadeIn 0.2s ease;
         }
 
+        /* Password Modal */
+        .password-modal {
+            background: var(--bg-card);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-lg);
+            padding: 32px;
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+        }
+
+        .password-modal h3 {
+            margin-bottom: 8px;
+            font-size: 1.3rem;
+        }
+
+        .password-modal p {
+            color: var(--text-muted);
+            margin-bottom: 24px;
+            font-size: 0.9rem;
+        }
+
+        .password-modal input {
+            width: 100%;
+            padding: 14px 16px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            background: var(--bg);
+            color: var(--text);
+            font-size: 1rem;
+            text-align: center;
+            margin-bottom: 16px;
+        }
+
+        .password-modal input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .password-modal .btn {
+            width: 100%;
+            padding: 14px;
+            font-size: 1rem;
+        }
+
+        .password-error {
+            color: var(--danger);
+            font-size: 0.85rem;
+            margin-top: 8px;
+            display: none;
+        }
+
+        .password-modal .btn-cancel {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            margin-top: 8px;
+        }
+
+        .password-modal .btn-cancel:hover {
+            background: var(--bg);
+        }
+
         .modal {
             background: var(--bg-card);
             border-radius: var(--radius-lg);
@@ -2159,6 +2222,18 @@
     <div class="toast" id="toast"></div>
 
     <!-- Dark mode toggle -->
+    <!-- Password Protection Modal for Settings -->
+    <div class="modal-overlay" id="passwordModal">
+        <div class="password-modal">
+            <h3>🔒 Settings Locked</h3>
+            <p>Enter password to access Settings</p>
+            <input type="password" id="settingsPassword" placeholder="Enter password" onkeydown="if(event.key==='Enter')checkSettingsPassword()">
+            <button class="btn btn-primary" onclick="checkSettingsPassword()">Unlock</button>
+            <button class="btn btn-cancel" onclick="closePasswordModal()">Cancel</button>
+            <div class="password-error" id="passwordError">Incorrect password. Try again.</div>
+        </div>
+    </div>
+
     <button class="dark-mode-toggle" onclick="toggleDarkMode()" title="Toggle dark mode">🌙</button>
 
     <script>
@@ -2175,6 +2250,7 @@
         let currentGalleryImages = [];
         let currentGalleryIndex = 0;
         let currentEditIndustryId = null;
+        let settingsUnlocked = false;
 
         // Default industries
         const DEFAULT_INDUSTRIES = [
@@ -3020,6 +3096,15 @@
             document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
             
+            // Check if trying to access settings tab
+            if (tabName === 'settings' && !settingsUnlocked) {
+                document.getElementById('passwordModal').classList.add('active');
+                document.getElementById('settingsPassword').value = '';
+                document.getElementById('settingsPassword').focus();
+                document.getElementById('passwordError').style.display = 'none';
+                return;
+            }
+            
             document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
             document.getElementById(`tab-${tabName}`).classList.add('active');
 
@@ -3028,6 +3113,28 @@
             } else if (tabName === 'contacts') {
                 filterContacts();
             }
+        }
+
+        // Password protection for Settings
+        function checkSettingsPassword() {
+            const password = document.getElementById('settingsPassword').value;
+            if (password === '1231') {
+                settingsUnlocked = true;
+                document.getElementById('passwordModal').classList.remove('active');
+                // Now switch to settings tab
+                document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+                document.querySelector('[data-tab="settings"]').classList.add('active');
+                document.getElementById('tab-settings').classList.add('active');
+                loadIndustriesSettings();
+            } else {
+                document.getElementById('passwordError').style.display = 'block';
+                document.getElementById('settingsPassword').value = '';
+            }
+        }
+
+        function closePasswordModal() {
+            document.getElementById('passwordModal').classList.remove('active');
         }
 
         // Settings - Industries
