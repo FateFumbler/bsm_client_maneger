@@ -2123,6 +2123,7 @@
                                 <th>Designation</th>
                                 <th>Phone</th>
                                 <th>Email</th>
+                                <th>Website</th>
                                 <th>Industry</th>
                                 <th>Date</th>
                                 <th>Cards</th>
@@ -2197,6 +2198,7 @@
                                 <th>Designation</th>
                                 <th>Phone</th>
                                 <th>Email</th>
+                                <th>Website</th>
                                 <th>Industry</th>
                                 <th>Date</th>
                                 <th>Cards</th>
@@ -2794,6 +2796,7 @@
 
         function renderContactRow(contact) {
             const industryClass = (contact.industry || '').toLowerCase().replace(/\s+/g, '');
+            const website = contact.website ? `<a href="${escapeHtml(contact.website)}" target="_blank" class="click-to-copy">${escapeHtml(contact.website)}</a>` : '-';
             return `
                 <tr>
                     <td><input type="checkbox" ${selectedContacts.has(contact.id) ? 'checked' : ''} onchange="toggleContactSelect(${contact.id}, event)"></td>
@@ -2802,6 +2805,7 @@
                     <td>${escapeHtml(contact.designation || '-')}</td>
                     <td class="click-to-copy" onclick="copyToClipboard('${escapeHtml(contact.phone)}')">${escapeHtml(contact.phone || '-')}</td>
                     <td class="click-to-copy" onclick="copyToClipboard('${escapeHtml(contact.email)}')">${escapeHtml(contact.email || '-')}</td>
+                    <td>${website}</td>
                     <td>${contact.industry ? `<span class="industry-badge ${industryClass}">${escapeHtml(contact.industry)}</span>` : '-'}</td>
                     <td>${contact.created_at ? new Date(contact.created_at).toLocaleDateString() : '-'}</td>
                     <td>
