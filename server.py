@@ -46,12 +46,18 @@ class _NoCloseConnection:
 def get_db():
     """Get database connection - Turso for production, SQLite for local dev.
     Reuses a single connection to avoid per-request connection overhead.
-    Returns a wrapped connection where close() is a no-op (safe to call everywhere)."""
+    Returns a wrapped connection where close() is a no-op (safe to call everywhere).
+    Uses HTTP endpoint for serverless compatibility (libsql:// websockets can be unreliable in Lambda)."""
     global _turso_conn
     if TURSO_DB_URL and TURSO_AUTH_TOKEN and TURSO_AVAILABLE:
         try:
+            # Use HTTP URL for serverless compatibility — websockets are problematic in Lambda
+            http_url = TURSO_DB_URL
+            if http_url.startswith('libsql://'):
+                http_url = http_url.replace('libsql://', 'https://')
+
             if _turso_conn is None:
-                _turso_conn = libsql.connect(TURSO_DB_URL, auth_token=TURSO_AUTH_TOKEN)
+                _turso_conn = libsql.connect(http_url, auth_token=TURSO_AUTH_TOKEN)
             return _NoCloseConnection(_turso_conn)
         except Exception as e:
             print(f"Turso connection failed: {e}, resetting connection")
