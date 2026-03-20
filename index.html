@@ -3586,7 +3586,7 @@
                             ${sp.is_default ? '<span class="default-badge">Default</span>' : ''}
                         </span>
                         <div class="industry-item-actions">
-                            ${!sp.is_default ? `<button class="btn btn-danger btn-sm" onclick="deleteSalesPerson('${sp.id}')">Delete</button>` : ''}
+                            <button class="btn btn-danger btn-sm" onclick="deleteSalesPerson('${sp.id}')">Delete</button>
                         </div>
                     </li>
                 `).join('');
