@@ -2089,6 +2089,13 @@
                 </div>
 
                 <div class="form-group">
+                    <label>Sales Person</label>
+                    <select id="salesPersonSelect">
+                        <option value="">Select Sales Person...</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
                     <label>Notes</label>
                     <textarea id="notes" placeholder="Add notes about this contact..."></textarea>
                 </div>
@@ -2125,6 +2132,7 @@
                                 <th>Email</th>
                                 <th>Website</th>
                                 <th>Industry</th>
+                                <th>Sales Person</th>
                                 <th>Date</th>
                                 <th>Cards</th>
                                 <th></th>
@@ -2200,6 +2208,7 @@
                                 <th>Email</th>
                                 <th>Website</th>
                                 <th>Industry</th>
+                                <th>Sales Person</th>
                                 <th>Date</th>
                                 <th>Cards</th>
                                 <th>Actions</th>
@@ -2236,6 +2245,21 @@
                 <div class="add-industry-form">
                     <input type="text" id="newIndustryInput" placeholder="Enter new industry name...">
                     <button class="btn btn-primary" onclick="addIndustryFromSettings()">Add</button>
+                </div>
+            </div>
+
+            <div class="card" style="margin-top: 20px;">
+                <h2 class="card-title">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+                    Sales Person Settings
+                </h2>
+                <p style="color: var(--text-muted); margin-bottom: 20px; font-size: 0.9rem;">
+                    Manage the sales person list for assigning to contacts.
+                </p>
+                <ul class="industry-list" id="salesPersonList"></ul>
+                <div class="add-industry-form">
+                    <input type="text" id="newSalesPersonInput" placeholder="Enter new sales person name...">
+                    <button class="btn btn-primary" onclick="addSalesPersonFromSettings()">Add</button>
                 </div>
             </div>
         </div>
@@ -2287,6 +2311,12 @@
                     <label>Industry</label>
                     <select id="editIndustry">
                         <option value="">Select Industry...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Sales Person</label>
+                    <select id="editSalesPerson">
+                        <option value="">Select Sales Person...</option>
                     </select>
                 </div>
                 <div class="form-group">
@@ -2434,6 +2464,7 @@
         document.addEventListener('DOMContentLoaded', async () => {
             await loadStats();
             await loadIndustries();
+            await loadSalesPersons();
             await loadContacts();
             
             // Check for dark mode preference
@@ -2540,6 +2571,34 @@
             return selectedOption ? selectedOption.text : '';
         }
 
+        // Sales Persons
+        async function loadSalesPersons() {
+            try {
+                const res = await fetch(API_BASE + '/api/sales_persons');
+                const salesPersons = await res.json();
+                
+                // Populate capture form dropdown
+                const select = document.getElementById('salesPersonSelect');
+                if (select) {
+                    select.innerHTML = '<option value="">Select Sales Person...</option>';
+                    salesPersons.forEach(sp => {
+                        select.innerHTML += `<option value="${escapeHtml(sp.name)}">${escapeHtml(sp.name)}</option>`;
+                    });
+                }
+                
+                // Populate edit form dropdown
+                const editSelect = document.getElementById('editSalesPerson');
+                if (editSelect) {
+                    editSelect.innerHTML = '<option value="">Select Sales Person...</option>';
+                    salesPersons.forEach(sp => {
+                        editSelect.innerHTML += `<option value="${escapeHtml(sp.name)}">${escapeHtml(sp.name)}</option>`;
+                    });
+                }
+            } catch (err) {
+                console.error('Failed to load sales persons:', err);
+            }
+        }
+
         // Contacts API
         async function loadContacts() {
             try {
@@ -2562,6 +2621,7 @@
                 email: document.getElementById('email').value.trim(),
                 website: document.getElementById('website').value.trim(),
                 industry: getIndustry(),
+                salesPerson: document.getElementById('salesPersonSelect').value,
                 notes: document.getElementById('notes').value.trim(),
                 images: uploadedImages
             };
@@ -2787,6 +2847,8 @@
                         </div>
                     ` : ''}
                     
+                    ${contact.sales_person ? `<div class="contact-card-sales-person" style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">Sales: ${escapeHtml(contact.sales_person)}</div>` : ''}
+                    
                     ${notes ? `<div class="contact-card-notes">${escapeHtml(notes)}</div>` : ''}
                     
                     <div class="contact-card-date">Added: ${new Date(contact.created_at).toLocaleDateString()}</div>
@@ -2807,6 +2869,7 @@
                     <td class="click-to-copy" onclick="copyToClipboard('${escapeHtml(contact.email)}')">${escapeHtml(contact.email || '-')}</td>
                     <td>${website}</td>
                     <td>${contact.industry ? `<span class="industry-badge ${industryClass}">${escapeHtml(contact.industry)}</span>` : '-'}</td>
+                    <td>${escapeHtml(contact.sales_person || '-')}</td>
                     <td>${contact.created_at ? new Date(contact.created_at).toLocaleDateString() : '-'}</td>
                     <td>
                         ${contact.images && contact.images.length > 0 ? `<span class="click-to-copy" onclick="viewContactImages(${contact.id})">${contact.images.length} 📷</span>` : '0'}
@@ -3289,6 +3352,7 @@
             document.getElementById('editEmail').value = contact.email || '';
             document.getElementById('editWebsite').value = contact.website || '';
             document.getElementById('editIndustry').value = contact.industry || '';
+            document.getElementById('editSalesPerson').value = contact.sales_person || '';
             document.getElementById('editNotes').value = contact.notes || '';
             
             document.getElementById('editModal').classList.add('active');
@@ -3309,6 +3373,7 @@
                 email: document.getElementById('editEmail').value.trim(),
                 website: document.getElementById('editWebsite').value.trim(),
                 industry: document.getElementById('editIndustry').value,
+                salesPerson: document.getElementById('editSalesPerson').value,
                 notes: document.getElementById('editNotes').value.trim()
             };
             
@@ -3372,6 +3437,7 @@
 
             if (tabName === 'settings') {
                 loadIndustriesSettings();
+                loadSalesPersonsSettings();
             } else if (tabName === 'contacts') {
                 filterContacts();
             }
@@ -3389,6 +3455,7 @@
                 document.querySelector('[data-tab="settings"]').classList.add('active');
                 document.getElementById('tab-settings').classList.add('active');
                 loadIndustriesSettings();
+                loadSalesPersonsSettings();
             } else {
                 document.getElementById('passwordError').style.display = 'block';
                 document.getElementById('settingsPassword').value = '';
@@ -3504,6 +3571,77 @@
             }
         }
 
+        // Settings - Sales Persons
+        async function loadSalesPersonsSettings() {
+            const list = document.getElementById('salesPersonList');
+            
+            try {
+                const res = await fetch(API_BASE + '/api/sales_persons');
+                const salesPersons = await res.json();
+                
+                list.innerHTML = salesPersons.map(sp => `
+                    <li class="industry-item">
+                        <span class="industry-item-name">
+                            ${escapeHtml(sp.name)}
+                            ${sp.is_default ? '<span class="default-badge">Default</span>' : ''}
+                        </span>
+                        <div class="industry-item-actions">
+                            ${!sp.is_default ? `<button class="btn btn-danger btn-sm" onclick="deleteSalesPerson('${sp.id}')">Delete</button>` : ''}
+                        </div>
+                    </li>
+                `).join('');
+            } catch (err) {
+                console.error('Failed to load sales persons settings:', err);
+            }
+        }
+
+        async function addSalesPersonFromSettings() {
+            const input = document.getElementById('newSalesPersonInput');
+            const name = input.value.trim();
+            
+            if (!name) {
+                showToast('Please enter a sales person name', 'error');
+                return;
+            }
+            
+            try {
+                const res = await fetch(API_BASE + '/api/sales_persons', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name })
+                });
+                
+                if (!res.ok) throw new Error('Failed to add');
+                
+                input.value = '';
+                await loadSalesPersons();
+                await loadSalesPersonsSettings();
+                showToast('Sales person added', 'success');
+            } catch (err) {
+                console.error('Failed to add sales person:', err);
+                showToast('Failed to add sales person', 'error');
+            }
+        }
+
+        async function deleteSalesPerson(id) {
+            if (!confirm('Delete this sales person?')) return;
+            
+            try {
+                const res = await fetch(API_BASE + `/api/sales_persons/${id}`, {
+                    method: 'DELETE'
+                });
+                
+                if (!res.ok) throw new Error('Failed to delete');
+                
+                await loadSalesPersons();
+                await loadSalesPersonsSettings();
+                showToast('Sales person deleted', 'success');
+            } catch (err) {
+                console.error('Failed to delete sales person:', err);
+                showToast('Failed to delete sales person', 'error');
+            }
+        }
+
         // Reset form
         function resetForm() {
             document.getElementById('fullName').value = '';
@@ -3515,6 +3653,7 @@
             document.getElementById('industrySelect').value = '';
             document.getElementById('industryCustom').value = '';
             document.getElementById('industryCustomWrapper').classList.remove('visible');
+            document.getElementById('salesPersonSelect').value = '';
             document.getElementById('notes').value = '';
             
             uploadedImages = [];

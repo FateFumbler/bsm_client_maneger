@@ -115,6 +115,7 @@ def init_database():
             email TEXT,
             website TEXT,
             industry TEXT,
+            sales_person TEXT,
             notes TEXT DEFAULT '',
             images TEXT,
             created_at TEXT
@@ -123,6 +124,14 @@ def init_database():
     
     db.execute('''
         CREATE TABLE IF NOT EXISTS industries (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            is_default INTEGER DEFAULT 0
+        )
+    ''')
+    
+    db.execute('''
+        CREATE TABLE IF NOT EXISTS sales_persons (
             id TEXT PRIMARY KEY,
             name TEXT NOT NULL,
             is_default INTEGER DEFAULT 0
@@ -145,6 +154,16 @@ def init_database():
     
     for industry in default_industries:
         db.execute('INSERT OR IGNORE INTO industries (id, name, is_default) VALUES (?, ?, ?)', industry)
+    
+    # Insert default sales persons if not exist
+    default_sales_persons = [
+        ('sp1', 'Self', 1),
+        ('sp2', 'Tushar', 1),
+        ('sp3', 'Ainesh', 1),
+    ]
+    
+    for sp in default_sales_persons:
+        db.execute('INSERT OR IGNORE INTO sales_persons (id, name, is_default) VALUES (?, ?, ?)', sp)
     
     # Add notes column to contacts if not exists
     try:
@@ -423,8 +442,9 @@ def get_contacts():
                     'email': row[5],
                     'website': row[6],
                     'industry': row[7],
-                    'notes': row[8] if len(row) > 8 else '',
-                    'created_at': row[9] if len(row) > 9 else row[8]
+                    'sales_person': row[8] if len(row) > 8 else '',
+                    'notes': row[9] if len(row) > 9 else '',
+                    'created_at': row[10] if len(row) > 10 else row[9]
                 }
             else:
                 # Fallback: try to convert to dict
@@ -478,8 +498,8 @@ def create_contact():
         images_json = json.dumps(data.get('images', []))
         
         result = db.execute('''
-            INSERT INTO contacts (full_name, company, designation, phone, email, website, industry, notes, images, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO contacts (full_name, company, designation, phone, email, website, industry, sales_person, notes, images, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             data.get('fullName'),
             data.get('company'),
@@ -488,6 +508,7 @@ def create_contact():
             data.get('email'),
             data.get('website'),
             data.get('industry'),
+            data.get('salesPerson'),
             data.get('notes', ''),
             images_json,
             datetime.now().isoformat()
@@ -580,7 +601,7 @@ def update_contact(contact_id):
         db = get_db()
         
         # Build dynamic update query
-        allowed_fields = ['full_name', 'company', 'designation', 'phone', 'email', 'website', 'industry', 'notes', 'images']
+        allowed_fields = ['full_name', 'company', 'designation', 'phone', 'email', 'website', 'industry', 'sales_person', 'notes', 'images']
         updates = []
         values = []
         
@@ -592,6 +613,7 @@ def update_contact(contact_id):
             'email': 'email',
             'website': 'website',
             'industry': 'industry',
+            'salesPerson': 'sales_person',
             'notes': 'notes',
             'images': 'images'
         }
@@ -912,6 +934,137 @@ def delete_industry(industry_id):
         return jsonify({'message': 'Industry deleted successfully'})
     except Exception as e:
         print(f"Error deleting industry: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+# Sales Persons API
+@app.route('/api/sales_persons', methods=['GET'])
+def get_sales_persons():
+    """Get all sales persons"""
+    db = get_db()
+    try:
+        result = db.execute('SELECT id, name, is_default FROM sales_persons ORDER BY is_default DESC, name ASC')
+        
+        # Use fetchall() which works for both Turso and SQLite
+        try:
+            rows = result.fetchall()
+        except Exception:
+            rows = []
+        
+        sales_persons = []
+        for row in rows:
+            # Handle both Turso (tuple) and SQLite (Row object)
+            if hasattr(row, '_asdict'):  # SQLite Row
+                sales_persons.append(row._asdict())
+            elif isinstance(row, (list, tuple)):  # Turso tuple
+                sales_persons.append({
+                    'id': row[0],
+                    'name': row[1],
+                    'is_default': row[2]
+                })
+            else:
+                try:
+                    sales_persons.append(dict(row))
+                except:
+                    sales_persons.append({'_raw': str(row)})
+        return jsonify(sales_persons), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    finally:
+        db.close()
+
+@app.route('/api/sales_persons', methods=['POST'])
+def create_sales_person():
+    """Create a new sales person"""
+    data = request.get_json()
+    
+    if not data or not data.get('name'):
+        return jsonify({'error': 'Sales person name is required'}), 400
+    
+    sales_person_id = data.get('id', 'sp_' + data['name'].lower().replace(' ', '_') + '_' + str(int(time.time())))
+    
+    db = get_db()
+    
+    try:
+        db.execute(
+            'INSERT INTO sales_persons (id, name, is_default) VALUES (?, ?, 0)',
+            (sales_person_id, data['name'])
+        )
+        db.commit()
+        db.close()
+        
+        return jsonify({'id': sales_person_id, 'message': 'Sales person created successfully'}), 201
+    except Exception as e:
+        db.close()
+        error_msg = str(e)
+        if 'UNIQUE constraint' in error_msg or 'duplicate key' in error_msg.lower():
+            return jsonify({'error': 'Sales person already exists'}), 400
+        return jsonify({'error': str(e)}), 400
+
+@app.route('/api/sales_persons/<sales_person_id>', methods=['PUT'])
+def update_sales_person(sales_person_id):
+    """Update a sales person"""
+    try:
+        data = request.get_json()
+        
+        if not data or not data.get('name'):
+            return jsonify({'error': 'Sales person name is required'}), 400
+        
+        db = get_db()
+        
+        result = db.execute('UPDATE sales_persons SET name = ? WHERE id = ?', (data['name'], sales_person_id))
+        
+        # Check rows affected - Turso uses rows_affected, SQLite uses rowcount
+        try:
+            if hasattr(result, 'rows_affected'):
+                rows_affected = result.rows_affected
+            elif hasattr(result, 'rowcount'):
+                rows_affected = result.rowcount
+            else:
+                rows_affected = 1  # Assume success if unknown
+        except:
+            rows_affected = 1  # Assume success if unknown
+        
+        if rows_affected == 0:
+            db.close()
+            return jsonify({'error': 'Sales person not found'}), 404
+        
+        db.commit()
+        db.close()
+        
+        return jsonify({'message': 'Sales person updated successfully'})
+    except Exception as e:
+        print(f"Error updating sales person: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/sales_persons/<sales_person_id>', methods=['DELETE'])
+def delete_sales_person(sales_person_id):
+    """Delete a sales person"""
+    try:
+        db = get_db()
+        
+        # Check if it exists
+        result = db.execute('SELECT is_default FROM sales_persons WHERE id = ?', (sales_person_id,))
+        
+        try:
+            rows = result.fetchall()
+        except:
+            rows = list(result.rows) if hasattr(result, 'rows') else []
+        
+        if not rows:
+            db.close()
+            return jsonify({'error': 'Sales person not found'}), 404
+        
+        db.execute('DELETE FROM sales_persons WHERE id = ?', (sales_person_id,))
+        db.commit()
+        db.close()
+        
+        return jsonify({'message': 'Sales person deleted successfully'})
+    except Exception as e:
+        print(f"Error deleting sales person: {e}")
         import traceback
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500
