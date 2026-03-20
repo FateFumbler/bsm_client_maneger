@@ -3084,28 +3084,51 @@
 
             updateUploadedImagesPreview();
 
-            // Stage 2: Parallel OCR for all images
+            // Stage 2: OCR via server (GPT-4o Vision)
             document.getElementById('loadingText').textContent = 'Extracting contact info...';
-            updateStatusProgress(`Scanning ${files.length} image${files.length > 1 ? 's' : ''} in parallel...`, loadingEl);
+            updateStatusProgress('Scanning business card...', loadingEl);
 
-            const ocrResults = await Promise.all(
-                compressedImages.map((imgData, i) =>
-                    processImageForOCRParallel(imgData, i, compressedImages.length)
-                )
-            );
+            try {
+                const ocrResponse = await fetch(API_BASE + '/api/ocr/batch', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ images: compressedImages })
+                });
 
-            // Stage 3: Merge results from all images
-            const validResults = ocrResults.filter(r => r !== null);
+                if (ocrResponse.ok) {
+                    const contactData = await ocrResponse.json();
 
-            if (validResults.length > 0) {
-                // Merge all OCR text and parse
-                const mergedText = validResults.join('\n');
-                parseOCRResult(mergedText);
+                    if (contactData.error) {
+                        throw new Error(contactData.error);
+                    }
 
-                const confidence = validResults.length === files.length ? 'high' : 'medium';
-                statusEl.className = 'ocr-status done';
-                statusEl.innerHTML = `<span class="ocr-confidence ${confidence}">✓ Done</span> Extracted from ${validResults.length} image${validResults.length > 1 ? 's' : ''}`;
-            } else {
+                    // Fill form fields with extracted data
+                    if (contactData.fullName) document.getElementById('fullName').value = contactData.fullName;
+                    if (contactData.company) document.getElementById('company').value = contactData.company;
+                    if (contactData.designation) document.getElementById('designation').value = contactData.designation;
+                    if (contactData.phone) document.getElementById('phone').value = contactData.phone;
+                    if (contactData.email) document.getElementById('email').value = contactData.email;
+                    if (contactData.website) {
+                        let website = contactData.website;
+                        if (!website.startsWith('http')) website = 'https://' + website;
+                        document.getElementById('website').value = website;
+                    }
+
+                    const hasData = contactData.fullName || contactData.company || contactData.phone || contactData.email;
+                    if (hasData) {
+                        ocrConfidence = 'high';
+                        statusEl.className = 'ocr-status done';
+                        statusEl.innerHTML = `<span class="ocr-confidence high">✓ Done</span> Contact info extracted`;
+                    } else {
+                        ocrConfidence = 'low';
+                        statusEl.className = 'ocr-status done';
+                        statusEl.innerHTML = `<span class="ocr-confidence low">⚠ Manual entry needed</span> Please fill in the details`;
+                    }
+                } else {
+                    throw new Error('OCR request failed');
+                }
+            } catch (err) {
+                console.error('OCR error:', err);
                 ocrConfidence = 'low';
                 statusEl.className = 'ocr-status done';
                 statusEl.innerHTML = `<span class="ocr-confidence low">⚠ Manual entry needed</span> Please fill in the details`;
@@ -3166,8 +3189,25 @@
                 if (stored.length > 0 && uploadedImages.length === 0) {
                     uploadedImages = stored;
                     sessionStorage.removeItem('bsm_uploaded');
-                    stored.forEach((img, i) => processImageForOCRParallel(img, i, stored.length));
                     updateUploadedImagesPreview();
+
+                    // Call server OCR endpoint
+                    fetch(API_BASE + '/api/ocr/batch', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ images: stored })
+                    }).then(res => res.json()).then(contactData => {
+                        if (contactData.fullName) document.getElementById('fullName').value = contactData.fullName;
+                        if (contactData.company) document.getElementById('company').value = contactData.company;
+                        if (contactData.designation) document.getElementById('designation').value = contactData.designation;
+                        if (contactData.phone) document.getElementById('phone').value = contactData.phone;
+                        if (contactData.email) document.getElementById('email').value = contactData.email;
+                        if (contactData.website) {
+                            let website = contactData.website;
+                            if (!website.startsWith('http')) website = 'https://' + website;
+                            document.getElementById('website').value = website;
+                        }
+                    }).catch(err => console.error('OCR restore error:', err));
                 }
             } catch (err) {}
         }
