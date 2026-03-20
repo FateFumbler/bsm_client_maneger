@@ -170,6 +170,12 @@ def init_database():
         db.execute('ALTER TABLE contacts ADD COLUMN notes TEXT DEFAULT ""')
     except:
         pass  # Column may already exist
+
+    # Add sales_person column to contacts if not exists
+    try:
+        db.execute('ALTER TABLE contacts ADD COLUMN sales_person TEXT DEFAULT ""')
+    except:
+        pass  # Column may already exist
     
     # Add index on created_at for fast ordering
     try:
@@ -418,7 +424,7 @@ def get_contacts():
         # Turso: use db.execute() and fetchall()
         # Note: images excluded from list view for performance (12MB+ savings)
         # Fetch images individually per contact via /api/contacts/<id>/images
-        result = db.execute('SELECT id, full_name, company, designation, phone, email, website, industry, notes, created_at FROM contacts ORDER BY created_at DESC')
+        result = db.execute('SELECT id, full_name, company, designation, phone, email, website, industry, sales_person, notes, created_at FROM contacts ORDER BY created_at DESC')
         
         # Use fetchall() which works for both Turso and SQLite
         try:
