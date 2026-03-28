@@ -1958,6 +1958,135 @@
                 left: 10px;
             }
         }
+
+        /* ===== BULK CAPTURE TAB ===== */
+        .bulk-dropzone {
+            border: 2px dashed var(--border-color, #e0e0e0);
+            border-radius: 12px;
+            padding: 48px 24px;
+            text-align: center;
+            cursor: pointer;
+            transition: border-color 0.2s, background 0.2s;
+            background: var(--bg-color, #fafafa);
+            color: var(--text-muted, #888);
+            margin-bottom: 20px;
+        }
+        .bulk-dropzone:hover {
+            border-color: var(--primary-color, #2563eb);
+            background: color-mix(in srgb, var(--primary-color, #2563eb) 5%, white);
+        }
+        .bulk-dropzone svg {
+            margin-bottom: 12px;
+            opacity: 0.4;
+        }
+        .bulk-dropzone-text {
+            font-size: 1rem;
+            font-weight: 500;
+            color: var(--text-color, #333);
+            margin-bottom: 4px;
+        }
+        .bulk-dropzone-hint {
+            font-size: 0.8rem;
+            opacity: 0.6;
+        }
+
+        .bulk-progress-section {
+            margin-top: 20px;
+        }
+        .bulk-progress-header {
+            font-size: 0.9rem;
+            color: var(--text-muted, #888);
+            margin-bottom: 8px;
+        }
+        .bulk-progress-bar {
+            width: 100%;
+            height: 8px;
+            background: var(--border-color, #e0e0e0);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 16px;
+        }
+        .bulk-progress-fill {
+            height: 100%;
+            background: var(--primary-color, #2563eb);
+            border-radius: 4px;
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+        .bulk-thumbnails {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .bulk-thumb {
+            position: relative;
+            width: 44px;
+            height: 44px;
+            border-radius: 6px;
+            overflow: hidden;
+            border: 2px solid var(--border-color, #e0e0e0);
+            background: var(--card-bg, #fff);
+        }
+        .bulk-thumb img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .bulk-thumb-badge {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            font-size: 0.55rem;
+            text-align: center;
+            padding: 1px 2px;
+            font-weight: 600;
+            color: #fff;
+            text-transform: uppercase;
+        }
+        .bulk-thumb-badge.pending { background: rgba(150,150,150,0.85); }
+        .bulk-thumb-badge.processing { background: rgba(37,99,235,0.85); }
+        .bulk-thumb-badge.done { background: rgba(34,197,94,0.85); }
+        .bulk-thumb-badge.duplicate { background: rgba(234,179,8,0.85); color: #333; }
+        .bulk-thumb-badge.error { background: rgba(239,68,68,0.85); }
+        .bulk-thumb-badge.no_phone { background: rgba(150,150,150,0.85); }
+
+        .bulk-results-section {
+            margin-top: 20px;
+        }
+        .bulk-results-summary {
+            font-size: 0.95rem;
+            font-weight: 500;
+            color: var(--text-color, #333);
+            margin-bottom: 12px;
+            padding: 10px 14px;
+            background: color-mix(in srgb, var(--primary-color, #2563eb) 8%, white);
+            border-radius: 8px;
+            border-left: 4px solid var(--primary-color, #2563eb);
+        }
+        .bulk-save-bar {
+            margin-top: 16px;
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        .bulk-success-banner {
+            margin-top: 16px;
+            padding: 14px 18px;
+            background: rgba(34,197,94,0.12);
+            border: 1px solid rgba(34,197,94,0.4);
+            border-radius: 8px;
+            color: #16a34a;
+            font-weight: 500;
+            font-size: 0.95rem;
+        }
+
+        .badge-new { background: rgba(34,197,94,0.15); color: #16a34a; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; }
+        .badge-duplicate { background: rgba(234,179,8,0.15); color: #92400e; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; }
+        .badge-error { background: rgba(239,68,68,0.15); color: #dc2626; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; }
+        .badge-no_phone { background: rgba(150,150,150,0.15); color: #666; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; }
     </style>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
@@ -2015,6 +2144,10 @@
             <button class="tab" data-tab="settings" onclick="switchTab('settings')">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v6m0 6v6"/></svg>
                 <span>Settings</span>
+            </button>
+            <button class="tab" data-tab="bulk" onclick="switchTab('bulk')">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                <span>Bulk Capture</span>
             </button>
         </div>
 
@@ -2261,6 +2394,61 @@
                     <input type="text" id="newSalesPersonInput" placeholder="Enter new sales person name...">
                     <button class="btn btn-primary" onclick="addSalesPersonFromSettings()">Add</button>
                 </div>
+            </div>
+        </div>
+
+        <!-- Tab Content: Bulk Capture -->
+        <div class="tab-content" id="tab-bulk">
+            <div class="card">
+                <h2 class="card-title">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                    Bulk Capture
+                </h2>
+
+                <!-- Upload Drop Zone -->
+                <div class="bulk-dropzone" id="bulkDropzone" onclick="document.getElementById('bulkFileInput').click()">
+                    <input type="file" id="bulkFileInput" multiple accept="image/*" style="display:none" onchange="handleBulkFileSelect(this.files)">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="20" height="14" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                    <div class="bulk-dropzone-text">Drop up to 100 images here or click to browse</div>
+                    <div class="bulk-dropzone-hint">JPG, PNG, WEBP • Max 100 files</div>
+                </div>
+
+                <!-- Progress Section -->
+                <div class="bulk-progress-section" id="bulkProgressSection" style="display:none;">
+                    <div class="bulk-progress-header">
+                        <span id="bulkProgressText">Processing image 0 of 0...</span>
+                    </div>
+                    <div class="bulk-progress-bar">
+                        <div class="bulk-progress-fill" id="bulkProgressFill"></div>
+                    </div>
+                    <div class="bulk-thumbnails" id="bulkThumbnails"></div>
+                </div>
+
+                <!-- Results Section -->
+                <div class="bulk-results-section" id="bulkResultsSection" style="display:none;">
+                    <div class="bulk-results-summary" id="bulkResultsSummary"></div>
+                    <div class="table-container">
+                        <table id="bulkResultsTable">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Name</th>
+                                    <th>Company</th>
+                                    <th>Phone</th>
+                                    <th>Email</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="bulkResultsBody"></tbody>
+                        </table>
+                    </div>
+                    <div class="bulk-save-bar" id="bulkSaveBar">
+                        <button class="btn btn-primary" id="bulkSaveBtn" onclick="saveBulkContacts()">Save New Contacts</button>
+                    </div>
+                </div>
+
+                <!-- Success Banner -->
+                <div class="bulk-success-banner" id="bulkSuccessBanner" style="display:none;"></div>
             </div>
         </div>
     </div>
@@ -3462,7 +3650,7 @@
         function switchTab(tabName) {
             document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-            
+
             // Check if trying to access settings tab
             if (tabName === 'settings' && !settingsUnlocked) {
                 document.getElementById('passwordModal').classList.add('active');
@@ -3471,7 +3659,7 @@
                 document.getElementById('passwordError').style.display = 'none';
                 return;
             }
-            
+
             document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
             document.getElementById(`tab-${tabName}`).classList.add('active');
 
@@ -3480,6 +3668,8 @@
                 loadSalesPersonsSettings();
             } else if (tabName === 'contacts') {
                 filterContacts();
+            } else if (tabName === 'bulk') {
+                openBulkTab();
             }
         }
 
@@ -3772,6 +3962,207 @@
                 navigateImage(1);
             }
         });
+
+        // ===== BULK CAPTURE TAB =====
+        let bulkExistingPhones = new Set();
+        let bulkImages = [];
+        let bulkResults = [];
+        let bulkProcessing = false;
+
+        function normalizePhone(phone) {
+            if (!phone) return '';
+            phone = phone.trim();
+            if (phone.startsWith('+')) {
+                return '+' + phone.slice(1).replace(/\D/g, '');
+            }
+            return phone.replace(/\D/g, '');
+        }
+
+        function openBulkTab() {
+            fetch('/api/contacts/phones')
+                .then(r => r.json())
+                .then(data => {
+                    bulkExistingPhones = new Set(data.phones || []);
+                })
+                .catch(() => { bulkExistingPhones = new Set(); });
+        }
+
+        function handleBulkFileSelect(files) {
+            if (!files || files.length === 0) return;
+            if (files.length > 100) {
+                alert('Maximum 100 files allowed. Please select fewer files.');
+                return;
+            }
+            bulkImages = Array.from(files);
+            renderBulkThumbnails(bulkImages);
+            startBulkOCR();
+        }
+
+        function renderBulkThumbnails(images) {
+            const container = document.getElementById('bulkThumbnails');
+            container.innerHTML = '';
+            images.forEach((file, idx) => {
+                const thumb = document.createElement('div');
+                thumb.className = 'bulk-thumb';
+                thumb.id = `bulk-thumb-${idx}`;
+                const img = document.createElement('img');
+                img.src = URL.createObjectURL(file);
+                const badge = document.createElement('div');
+                badge.className = 'bulk-thumb-badge pending';
+                badge.textContent = '...';
+                thumb.appendChild(img);
+                thumb.appendChild(badge);
+                container.appendChild(thumb);
+            });
+        }
+
+        function updateBulkProgress(idx, total, results) {
+            const pct = total > 0 ? Math.round((idx / total) * 100) : 0;
+            document.getElementById('bulkProgressFill').style.width = pct + '%';
+            const newCount = results.filter(r => r.status === 'new').length;
+            const dupCount = results.filter(r => r.status === 'duplicate').length;
+            document.getElementById('bulkProgressText').textContent =
+                `Processing image ${idx} of ${total}... (${dupCount} duplicates found, ${newCount} new)`;
+        }
+
+        function renderBulkResults(results) {
+            document.getElementById('bulkProgressSection').style.display = 'none';
+            document.getElementById('bulkResultsSection').style.display = 'block';
+
+            const newResults = results.filter(r => r.status === 'new');
+            const dupResults = results.filter(r => r.status === 'duplicate');
+
+            document.getElementById('bulkResultsSummary').textContent =
+                `${newResults.length} contacts ready to save (${dupResults.length} duplicates will be skipped)`;
+
+            const saveBtn = document.getElementById('bulkSaveBtn');
+            saveBtn.textContent = `Save ${newResults.length} New Contacts`;
+            saveBtn.disabled = newResults.length === 0;
+
+            const tbody = document.getElementById('bulkResultsBody');
+            tbody.innerHTML = '';
+            results.forEach((r, i) => {
+                const tr = document.createElement('tr');
+                const badgeClass = r.status === 'new' ? 'badge-new' :
+                                   r.status === 'duplicate' ? 'badge-duplicate' :
+                                   r.status === 'no_phone' ? 'badge-no_phone' : 'badge-error';
+                const badgeLabel = r.status === 'new' ? 'New' :
+                                   r.status === 'duplicate' ? 'Duplicate' :
+                                   r.status === 'no_phone' ? 'No Phone' : 'Error';
+                tr.innerHTML = `
+                    <td>${i + 1}</td>
+                    <td>${escapeHtml(r.name || '—')}</td>
+                    <td>${escapeHtml(r.company || '—')}</td>
+                    <td>${escapeHtml(r.phone || '—')}</td>
+                    <td>${escapeHtml(r.email || '—')}</td>
+                    <td><span class="${badgeClass}">${badgeLabel}</span></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        async function startBulkOCR() {
+            if (bulkProcessing || bulkImages.length === 0) return;
+            bulkProcessing = true;
+            bulkResults = [];
+            document.getElementById('bulkProgressSection').style.display = 'block';
+            document.getElementById('bulkResultsSection').style.display = 'none';
+            document.getElementById('bulkSuccessBanner').style.display = 'none';
+            document.getElementById('bulkProgressFill').style.width = '0%';
+
+            for (let i = 0; i < bulkImages.length; i++) {
+                const file = bulkImages[i];
+                const thumbEl = document.getElementById(`bulk-thumb-${i}`);
+                const badgeEl = thumbEl ? thumbEl.querySelector('.bulk-thumb-badge') : null;
+
+                // Mark processing
+                if (badgeEl) { badgeEl.className = 'bulk-thumb-badge processing'; badgeEl.textContent = '...'; }
+
+                try {
+                    const base64 = await fileToBase64(file);
+                    const id = `bulk_img_${i}`;
+                    const resp = await fetch('/api/bulk-ocr', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ images: [{ id, data: base64 }] })
+                    });
+                    const data = await resp.json();
+
+                    if (data.results && data.results.length > 0) {
+                        for (const result of data.results) {
+                            const normPhone = normalizePhone(result.phone);
+                            let status = 'no_phone';
+                            if (normPhone) {
+                                status = bulkExistingPhones.has(normPhone) ? 'duplicate' : 'new';
+                                bulkExistingPhones.add(normPhone); // prevent same image yielding duplicates twice
+                            }
+                            bulkResults.push({ ...result, phone: normPhone, status });
+                        }
+                    } else {
+                        bulkResults.push({ name: data.name || '', company: data.company || '', phone: '', email: data.email || '', status: 'no_phone' });
+                    }
+                    if (badgeEl) { badgeEl.className = 'bulk-thumb-badge ' + (bulkResults[bulkResults.length - 1].status); badgeEl.textContent = bulkResults[bulkResults.length - 1].status; }
+                } catch (err) {
+                    bulkResults.push({ name: '', company: '', phone: '', email: '', status: 'error' });
+                    if (badgeEl) { badgeEl.className = 'bulk-thumb-badge error'; badgeEl.textContent = 'ERR'; }
+                }
+
+                updateBulkProgress(i + 1, bulkImages.length, bulkResults);
+            }
+
+            bulkProcessing = false;
+            renderBulkResults(bulkResults);
+        }
+
+        function fileToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result.split(',')[1]);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+
+        async function saveBulkContacts() {
+            const newContacts = bulkResults.filter(r => r.status === 'new');
+            if (newContacts.length === 0) return;
+            const saveBtn = document.getElementById('bulkSaveBtn');
+            saveBtn.disabled = true;
+            saveBtn.textContent = 'Saving...';
+            try {
+                const resp = await fetch('/api/contacts/bulk-create', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contacts: newContacts })
+                });
+                const data = await resp.json();
+                const banner = document.getElementById('bulkSuccessBanner');
+                banner.style.display = 'block';
+                banner.textContent = `${data.added || 0} contacts added successfully! ${data.skipped || 0} duplicates skipped.`;
+                document.getElementById('bulkSaveBar').style.display = 'none';
+                document.getElementById('bulkResultsSummary').textContent =
+                    `${data.added || 0} contacts saved successfully.`;
+            } catch (err) {
+                alert('Failed to save contacts: ' + err.message);
+            }
+            saveBtn.textContent = 'Save New Contacts';
+            saveBtn.disabled = newContacts.length === 0;
+        }
+
+        // Drag and drop on bulk dropzone
+        (function() {
+            const dz = document.getElementById('bulkDropzone');
+            if (dz) {
+                dz.addEventListener('dragover', e => { e.preventDefault(); dz.style.borderColor = 'var(--primary-color, #2563eb)'; dz.style.background = 'color-mix(in srgb, var(--primary-color, #2563eb) 5%, white)'; });
+                dz.addEventListener('dragleave', e => { e.preventDefault(); dz.style.borderColor = ''; dz.style.background = ''; });
+                dz.addEventListener('drop', e => {
+                    e.preventDefault();
+                    dz.style.borderColor = '';
+                    dz.style.background = '';
+                    handleBulkFileSelect(e.dataTransfer.files);
+                });
+            }
+        })();
     </script>
 </body>
 </html>
