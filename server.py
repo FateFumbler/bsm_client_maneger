@@ -1383,8 +1383,12 @@ def bulk_create_contacts():
 
         db = get_db()
 
-        # Fetch existing phones server-side for defensive duplicate check
-        result = db.execute('SELECT phone FROM contacts WHERE phone IS NOT NULL AND phone != ""')
+        # Fetch existing phones server-side for defensive duplicate check.
+        # Use the full-column SELECT (avoids the Turso libsql "no such column"
+        # glitch triggered by SELECT phone WHERE phone != '').
+        result = db.execute(
+            'SELECT id, full_name, company, designation, phone, email, website, industry, sales_person, notes, created_at FROM contacts'
+        )
         try:
             existing_rows = result.fetchall()
         except Exception:
@@ -1392,7 +1396,7 @@ def bulk_create_contacts():
 
         existing_phones = set()
         for row in existing_rows:
-            phone_val = row[0] if isinstance(row, (list, tuple)) else (getattr(row, 'phone', '') or '')
+            phone_val = row[4]  # phone is the 5th column (index 4)
             normalized = normalize_phone(phone_val)
             if normalized:
                 existing_phones.add(normalized)
