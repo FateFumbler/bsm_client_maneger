@@ -1233,6 +1233,214 @@ def health_check():
         'vercel_mode': True
     })
 
+# ---------------------------------------------------------------------------
+# Bulk Upload Endpoints
+# ---------------------------------------------------------------------------
+
+def normalize_phone(phone):
+    """Strip spaces/special chars from phone for duplicate comparison, keeping leading +."""
+    if not phone:
+        return ''
+    phone = phone.strip()
+    if phone.startswith('+'):
+        digits = ''.join(c for c in phone[1:] if c.isdigit())
+        return '+' + digits
+    return ''.join(c for c in phone if c.isdigit())
+
+@app.route('/api/contacts/phones', methods=['GET'])
+def get_contact_phones():
+    """Return all existing phone numbers (normalized) for client-side duplicate detection."""
+    try:
+        db = get_db()
+        result = db.execute('SELECT phone FROM contacts WHERE phone IS NOT NULL AND phone != ""')
+        try:
+            rows = result.fetchall()
+        except Exception:
+            rows = list(result.rows) if hasattr(result, 'rows') else []
+
+        phones = []
+        for row in rows:
+            phone_val = row[0] if isinstance(row, (list, tuple)) else (getattr(row, 'phone', '') or '')
+            normalized = normalize_phone(phone_val)
+            if normalized:
+                phones.append(normalized)
+
+        db.close()
+        return jsonify({'phones': phones}), 200
+    except Exception as e:
+        print(f"Error getting phones: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/bulk-ocr', methods=['POST'])
+def bulk_ocr():
+    """
+    Process up to 100 base64-encoded images sequentially with GPT-4o Vision OCR.
+    Returns per-image status: success | error | no_phone
+    """
+    try:
+        data = request.get_json()
+        if not data or not data.get('images'):
+            return jsonify({'error': 'No images provided'}), 400
+
+        images = data['images']
+        if not isinstance(images, list):
+            return jsonify({'error': '"images" must be a list'}), 400
+        if len(images) > 100:
+            return jsonify({'error': 'Maximum 100 images allowed'}), 400
+
+        results = []
+        for item in images:
+            img_id = item.get('id', '')
+            img_data = item.get('data', '')
+
+            if not img_data:
+                results.append({
+                    'id': img_id,
+                    'status': 'error',
+                    'data': {'fullName': '', 'company': '', 'designation': '',
+                             'phone': '', 'email': '', 'website': '', 'notes': ''},
+                    'error': 'No image data'
+                })
+                continue
+
+            try:
+                # Strip data URL prefix if present
+                base64_str = img_data
+                if ',' in base64_str:
+                    base64_str = base64_str.split(',')[1]
+
+                # Try GPT-4o Vision
+                extracted = extract_with_gpt4v(base64_str)
+
+                phone = extracted.get('phone', '').strip()
+                if not phone:
+                    results.append({
+                        'id': img_id,
+                        'status': 'no_phone',
+                        'data': {
+                            'fullName': extracted.get('fullName', ''),
+                            'company': extracted.get('company', ''),
+                            'designation': extracted.get('designation', ''),
+                            'phone': '',
+                            'email': extracted.get('email', ''),
+                            'website': extracted.get('website', ''),
+                            'notes': ''
+                        }
+                    })
+                else:
+                    results.append({
+                        'id': img_id,
+                        'status': 'success',
+                        'data': {
+                            'fullName': extracted.get('fullName', ''),
+                            'company': extracted.get('company', ''),
+                            'designation': extracted.get('designation', ''),
+                            'phone': phone,
+                            'email': extracted.get('email', ''),
+                            'website': extracted.get('website', ''),
+                            'notes': ''
+                        }
+                    })
+
+            except Exception as e:
+                print(f"Bulk OCR error for {img_id}: {e}")
+                results.append({
+                    'id': img_id,
+                    'status': 'error',
+                    'data': {'fullName': '', 'company': '', 'designation': '',
+                             'phone': '', 'email': '', 'website': '', 'notes': ''},
+                    'error': str(e)
+                })
+
+        return jsonify({'results': results}), 200
+
+    except Exception as e:
+        print(f"Bulk OCR endpoint error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/contacts/bulk-create', methods=['POST'])
+def bulk_create_contacts():
+    """
+    Bulk insert contacts with server-side duplicate check by phone.
+    Returns counts: added, skipped, errors
+    """
+    try:
+        data = request.get_json()
+        if not data or not data.get('contacts'):
+            return jsonify({'error': 'No contacts provided'}), 400
+
+        contacts = data['contacts']
+        if not isinstance(contacts, list):
+            return jsonify({'error': '"contacts" must be a list'}), 400
+
+        db = get_db()
+
+        # Fetch existing phones server-side for defensive duplicate check
+        result = db.execute('SELECT phone FROM contacts WHERE phone IS NOT NULL AND phone != ""')
+        try:
+            existing_rows = result.fetchall()
+        except Exception:
+            existing_rows = list(result.rows) if hasattr(result, 'rows') else []
+
+        existing_phones = set()
+        for row in existing_rows:
+            phone_val = row[0] if isinstance(row, (list, tuple)) else (getattr(row, 'phone', '') or '')
+            normalized = normalize_phone(phone_val)
+            if normalized:
+                existing_phones.add(normalized)
+
+        added = 0
+        skipped = 0
+        errors = 0
+
+        for contact in contacts:
+            phone_raw = contact.get('phone', '').strip()
+            normalized = normalize_phone(phone_raw)
+
+            # Server-side duplicate check
+            if normalized and normalized in existing_phones:
+                skipped += 1
+                continue
+
+            try:
+                db.execute('''
+                    INSERT INTO contacts (full_name, company, designation, phone, email, website, industry, sales_person, notes, images, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (
+                    contact.get('fullName', ''),
+                    contact.get('company', ''),
+                    contact.get('designation', ''),
+                    phone_raw,
+                    contact.get('email', ''),
+                    contact.get('website', ''),
+                    contact.get('industry', ''),
+                    contact.get('salesPerson', ''),
+                    contact.get('notes', ''),
+                    json.dumps([]),
+                    datetime.now().isoformat()
+                ))
+
+                if normalized:
+                    existing_phones.add(normalized)
+                added += 1
+
+            except Exception as e:
+                print(f"Error inserting contact: {e}")
+                errors += 1
+
+        db.commit()
+        db.close()
+
+        return jsonify({'added': added, 'skipped': skipped, 'errors': errors}), 200
+
+    except Exception as e:
+        print(f"Bulk create error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
 # Initialize database on startup
 init_database()
 
