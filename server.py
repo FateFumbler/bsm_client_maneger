@@ -1252,7 +1252,12 @@ def get_contact_phones():
     """Return all existing phone numbers (normalized) for client-side duplicate detection."""
     try:
         db = get_db()
-        result = db.execute('SELECT phone FROM contacts WHERE phone IS NOT NULL AND phone != ""')
+        # Use the same full-column SELECT that works reliably on Turso,
+        # then extract + normalize phone values in Python (avoids the libsql
+        # "no such column" glitch triggered by SELECT phone WHERE phone != '').
+        result = db.execute(
+            'SELECT id, full_name, company, designation, phone, email, website, industry, sales_person, notes, created_at FROM contacts'
+        )
         try:
             rows = result.fetchall()
         except Exception:
@@ -1260,7 +1265,8 @@ def get_contact_phones():
 
         phones = []
         for row in rows:
-            phone_val = row[0] if isinstance(row, (list, tuple)) else (getattr(row, 'phone', '') or '')
+            # row is a sqlite3.Row (supports both index and key access)
+            phone_val = row[4]  # phone is the 5th column (index 4)
             normalized = normalize_phone(phone_val)
             if normalized:
                 phones.append(normalized)
