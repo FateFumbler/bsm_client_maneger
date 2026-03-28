@@ -1166,7 +1166,7 @@ def export_excel():
         writer = csv.writer(output)
         
         # Header
-        writer.writerow(['Name', 'Company', 'Designation', 'Phone', 'Email', 'Website', 'Industry', 'Notes', 'Created At'])
+        writer.writerow(['Name', 'Company', 'Designation', 'Phone', 'Email', 'Website', 'Industry', 'Salesperson', 'Notes', 'Created At'])
         
         # Data
         for row in rows:
@@ -1181,6 +1181,7 @@ def export_excel():
                 row_dict.get('email', ''),
                 row_dict.get('website', ''),
                 row_dict.get('industry', ''),
+                row_dict.get('sales_person', ''),
                 row_dict.get('notes', ''),
                 row_dict.get('created_at', '')
             ])
