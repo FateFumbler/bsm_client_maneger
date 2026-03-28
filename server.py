@@ -1147,13 +1147,18 @@ def upload_file():
 # Export API
 @app.route('/api/export', methods=['GET'])
 def export_excel():
-    """Export contacts to Excel format (CSV for simplicity)"""
+    """Export contacts to CSV format (same column set as get_contacts, excluding images)"""
     try:
         import csv
         import io
         
         db = get_db()
-        result = db.execute('SELECT * FROM contacts ORDER BY created_at DESC')
+        # Use explicit column list (same as get_contacts) — avoids dict_from_row() issues
+        # and excludes the large images base64 column for performance
+        result = db.execute(
+            'SELECT id, full_name, company, designation, phone, email, website, '
+            'industry, sales_person, notes, created_at FROM contacts ORDER BY created_at DESC'
+        )
         
         try:
             rows = result.fetchall()
@@ -1165,26 +1170,42 @@ def export_excel():
         output = io.StringIO()
         writer = csv.writer(output)
         
-        # Header
+        # Header — matches column order exactly
         writer.writerow(['Name', 'Company', 'Designation', 'Phone', 'Email', 'Website', 'Industry', 'Salesperson', 'Notes', 'Created At'])
         
-        # Data
+        # Data — use direct positional access for Turso tuples (same pattern as get_contacts)
         for row in rows:
-            row_dict = dict_from_row(row)
-            if row_dict is None:
-                continue
-            writer.writerow([
-                row_dict.get('full_name', ''),
-                row_dict.get('company', ''),
-                row_dict.get('designation', ''),
-                row_dict.get('phone', ''),
-                row_dict.get('email', ''),
-                row_dict.get('website', ''),
-                row_dict.get('industry', ''),
-                row_dict.get('sales_person', ''),
-                row_dict.get('notes', ''),
-                row_dict.get('created_at', '')
-            ])
+            if isinstance(row, (list, tuple)):
+                # Turso tuple: 11 columns at indices 0-10
+                # id, full_name, company, designation, phone, email, website, industry,
+                # sales_person(8), notes(9), created_at(10)
+                row_len = len(row)
+                writer.writerow([
+                    row[1] if row_len > 1 else '',
+                    row[2] if row_len > 2 else '',
+                    row[3] if row_len > 3 else '',
+                    row[4] if row_len > 4 else '',
+                    row[5] if row_len > 5 else '',
+                    row[6] if row_len > 6 else '',
+                    row[7] if row_len > 7 else '',
+                    row[8] if row_len > 8 else '',
+                    row[9] if row_len > 9 else '',
+                    row[10] if row_len > 10 else row[9] if row_len > 9 else ''
+                ])
+            else:
+                # SQLite Row — use dict-like access
+                writer.writerow([
+                    getattr(row, 'full_name', '') or '',
+                    getattr(row, 'company', '') or '',
+                    getattr(row, 'designation', '') or '',
+                    getattr(row, 'phone', '') or '',
+                    getattr(row, 'email', '') or '',
+                    getattr(row, 'website', '') or '',
+                    getattr(row, 'industry', '') or '',
+                    getattr(row, 'sales_person', '') or '',
+                    getattr(row, 'notes', '') or '',
+                    getattr(row, 'created_at', '') or ''
+                ])
         
         output.seek(0)
         
